@@ -7,7 +7,7 @@
 %%% Haskell importable interface to Constraint/AbsSyn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(99 constraint) hs module {%{EH}Constraint} import({%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.Builtin})
+%%[(99 constraint) hs module {%{EH}Constraint} import({%{EH}Base.Common})
 %%]
 
 %%[(99 constraint) hs import(Language.Haskell.Constraint.Syntax)
@@ -16,5 +16,5 @@
 %%[(99 constraint) ag import({Constraint/AbsSyn})
 %%]
 
-%%[(99 constraint) hs export(WildcardTyVar(..), Top(..), Decl(..), Binding(..), PatExpr(..), Signature(..), DataCon(..), DataField(..), EqualityConstraint(..), InstanceConstraint(..), FuncDep(..), Expr(..), CaseAlt(..), Pattern(..))
+%%[(99 constraint) hs export(TyVar(..), TyVars, WildcardTyVar(..), TyExpr(..), TyExprs, OptTyExpr, Top(..), Decl(..), Decls, Binding(..), Bindings, PatExpr(..), PatExprs, Signature(..), Signatures, DataCon(..), DataCons, DataField(..), DataFields, EqualityConstraint(..), EqualityConstraints, InstanceConstraint(..), InstanceConstraints, FuncDep(..), FuncDeps, Expr(..), CaseAlt(..), CaseAlts, Pattern(..))
 %%]

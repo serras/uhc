@@ -7,6 +7,9 @@
 %%% Wrappers for the types in nice-type-constraints-solver
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%%[(99 constraint) ag import({Constraint/AbsSyn})
+%%]
+
 %%[(99 constraint)
 DATA MonoExpr name var
   | Var   var    : {var}
@@ -20,8 +23,8 @@ DATA MonoExpr name var
 
 DATA Constraint name var
   | Eq       level : {Level}
-             rhs   : {MonoExpr name var}
-             lhs   : {MonoExpr name var}
+             left  : {MonoExpr name var}
+             right : {MonoExpr name var}
   | Instance cls   : {name}
              args  : {[MonoExpr name var]}
 

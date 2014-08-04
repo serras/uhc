@@ -1,0 +1,17 @@
+%%[0
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Pretty printing
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(99 constraint) hs module {%{EH}Constraint.Pretty} import(UHC.Util.Pretty,{%{EH}Base.Common},{%{EH}Constraint})
+%%]
+
+%%[(99 constraint) hs import(Language.Haskell.Constraint.Syntax)
+%%]
+
+%%[(99 constraint) ag import({Constraint/FullAbsSyn})
+%%]

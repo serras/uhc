@@ -20,9 +20,9 @@ DATA WildcardTyVar
   | NamedWildcard nm : {HsName}
   | NormalTyVar   vr : TyVar
 
-{
-type TyExpr = MonoExpr HsName WildcardTyVar
-}
+DATA TyExpr
+  | T t : {MonoExpr HsName WildcardTyVar}
+
 TYPE TyExprs   = [TyExpr]
 TYPE OptTyExpr = MAYBE TyExpr
 %%]

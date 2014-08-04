@@ -133,3 +133,4 @@ Cmm/ToJavaScript
 Cmm/Trf/SimplifyLocalNames.cag
 JavaScript/Trf/InlineSingleUseNames.cag
 JavaScript/Trf/CompactAndSimplify.cag
+Constraint/Pretty.cag
