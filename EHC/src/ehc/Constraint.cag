@@ -1,0 +1,20 @@
+%%[0
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Haskell importable interface to Constraint/AbsSyn
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(99 constraint) hs module {%{EH}Constraint} import({%{EH}Base.Common},{%{EH}Base.TermLike},{%{EH}Base.Builtin})
+%%]
+
+%%[(99 constraint) hs import(Language.Haskell.Constraint.Syntax)
+%%]
+
+%%[(99 constraint) ag import({Constraint/AbsSyn})
+%%]
+
+%%[(99 constraint) hs export(WildcardTyVar(..), Top(..), Decl(..), Binding(..), PatExpr(..), Signature(..), DataCon(..), DataField(..), EqualityConstraint(..), InstanceConstraint(..), FuncDep(..), Expr(..), CaseAlt(..), Pattern(..))
+%%]

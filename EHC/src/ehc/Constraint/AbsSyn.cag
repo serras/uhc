@@ -1,0 +1,156 @@
+%%[0
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Intermediate syntax for Constraint Generation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Do NOT import SolverWrapper here!
+
+%%[(99 constraint)
+DATA TyVar
+  | Var nm : {HsName}
+
+TYPE TyVars = [TyVar]
+
+DATA WildcardTyVar
+  | Wildcard
+  | NamedWildcard nm : {HsName}
+  | NormalTyVar   vr : TyVar
+
+{
+type TyExpr = MonoExpr HsName WildcardTyVar
+}
+TYPE TyExprs   = [TyExpr]
+TYPE OptTyExpr = MAYBE TyExpr
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Decl
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(99 constraint)
+DATA Top
+  | Top decls : Decls
+
+DATA Decl
+  | Bindings bnds      : Bindings
+  | Data     ki        : OptTyExpr
+             isNewtype : {Bool}
+             tyVars    : TyVars
+             constrs   : DataCons
+  | Type     nm        : {HsName}
+             tyExpr    : TyExpr
+  | Class    context   : InstanceConstraints
+             head      : InstanceConstraint
+             funcDeps  : FuncDeps
+             sigs      : Signatures
+  | Instance context   : InstanceConstraints
+             head      : InstanceConstraint
+             sigs      : Bindings
+
+TYPE Decls = [Decl]
+  
+DATA Binding
+  | Unannotated pexpr : PatExpr
+  | Annotated   sig   : Signature
+                pexpr : PatExpr
+
+TYPE Bindings = [Binding]
+
+DATA PatExpr
+  | PatExpr pat  : Pattern
+            expr : Expr
+
+TYPE PatExprs = [PatExpr]
+	    
+DATA Signature
+  | Signature nm : {HsName}
+              ty : TyExpr
+
+TYPE Signatures = [Signature]
+
+DATA DataCon
+  | Constr nm     : {HsName}
+           fields : DataFields
+           eqs    : EqualityConstraints
+
+TYPE DataCons = [DataCon]
+
+DATA DataField
+  | Field label : {Maybe HsName}
+          ty    : TyExpr
+
+TYPE DataFields = [DataField]
+
+DATA EqualityConstraint
+  | ECon ty1 : TyExpr
+         ty2 : TyExpr
+
+TYPE EqualityConstraints = [EqualityConstraint]
+	   
+DATA InstanceConstraint
+  | ICon nm : {HsName}
+         ty : TyExprs
+
+TYPE InstanceConstraints = [InstanceConstraint]
+		
+DATA FuncDep
+  | Dep fromTvs : TyVars
+        toTvs   : TyVars
+
+TYPE FuncDeps = [FuncDep]
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Expression
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(99 constraint)
+DATA Expr
+  | IConst    int      : {Int}
+  | CConst    char     : {Char}
+  | SConst    str      : {String}
+  | Con       nm       : {HsName}
+  | Var       nm       : {HsName}
+  | App       func     : Expr
+              arg      : Expr
+  | Let       isStrict : {Bool}
+              decls    : Bindings
+              body     : Expr
+  | Lam       arg      : PatExpr
+              body     : Expr
+  | AppTop    expr     : Expr
+  | Parens    expr     : Expr
+  | TypeAs    isScoped : {Bool}
+              tyExpr   : TyExpr
+              expr     : Expr
+  | Case      expr     : Expr
+              alts     : CaseAlts
+  | Undefined
+
+DATA CaseAlt
+  | Pat pat  : Pattern
+        expr : Expr
+
+TYPE CaseAlts = [CaseAlt]
+  
+DATA Pattern
+  | IConst      int    : {Int}
+  | CConst      char   : {Char}
+  | SConst      str    : {String}
+  | Con         nm     : {HsName}
+  | Var         nm     : {HsName}
+  | VarAs       nm     : {HsName}
+                pat    : Pattern
+  | App         func   : Pattern
+                arg    : Pattern
+  | AppTop      expr   : Pattern
+  | Parens      expr   : Pattern
+  | TypeAs      tyExpr : TyExpr
+                expr   : Pattern
+  | Irrefutable expr   : Pattern
+  | Bang        expr   : Pattern
+%%]

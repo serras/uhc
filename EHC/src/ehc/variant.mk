@@ -20,6 +20,7 @@ EHC_ASPECTS								:= $(strip $(if $(ASPECTS),$(ASPECTS) \
 											 $(if $(ENABLE_CORESYSF),coresysf,) \
 											 $(if $(ENABLE_CORE_ASINPOUTP),corebackend,) \
 											 $(if $(ENABLE_TAUPHI),tauphi,) \
+											 $(if $(ENABLE_CONSTRAINT),constraint,) \
 											))
 EHC_ASPECTS_SUFFIX						:= $(if $(ASPECTS),-$(subst $(space),-,$(ASPECTS)),)
 EHC_ASPECTS_SUFFIX2						:= $(subst -,,$(EHC_ASPECTS_SUFFIX))
