@@ -7,11 +7,76 @@
 %%% Pretty printing
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(99 constraint) hs module {%{EH}Constraint.Pretty} import(UHC.Util.Pretty,{%{EH}Base.Common},{%{EH}Constraint})
-%%]
+%%[(99 constraint)
 
-%%[(99 constraint) hs import(Language.Haskell.Constraint.Syntax)
-%%]
+ATTR AllTypes AllConstraints AllDecls AllExprs [ | | pp USE {>-<} {empty} : PP_Doc ]
 
-%%[(99 constraint) ag import({Constraint/FullAbsSyn})
+SEM TyVar
+  | Var  lhs.pp = pp @nm
+
+SEM TyVars
+  | Nil   lhs.pp = empty
+  | Cons  lhs.pp = @hd.pp >#< @tl.pp
+
+SEM WildcardTyVar
+  | Wildcard       lhs.pp = text "_"
+  | NamedWildcard  lhs.pp = text ("_" ++ show @nm)
+  | NormalTyVar    lhs.pp = @vr.pp
+
+{
+instance PP WildcardTyVar where
+  pp WildcardTyVar_Wildcard                    = text "_"
+  pp (WildcardTyVar_NamedWildcard nm)          = text ("_" ++ show nm)
+  pp (WildcardTyVar_NormalTyVar (TyVar_Var v)) = pp v
+}
+  
+SEM PP name, PP var => MonoExpr
+  | Var    lhs.pp = pp @var
+  | Con    lhs.pp = pp @name
+  | Fam    lhs.pp = pp @name
+  | App    lhs.pp = @left.pp >#< ppParens @right.pp
+  | Star   lhs.pp = text "*"
+  | Arrow  lhs.pp = ppParens @source.pp >#< "->" >#< @target.pp
+
+SEM TyExpr
+  | T  lhs.pp = @t.pp
+
+SEM OptTyExpr
+  | Just     lhs.pp = @just.pp
+  | Nothing  lhs.pp = text "?"
+
+
+{
+-- Workaround for keeping GHC type checker happy
+data WorkaroundProxy a = WorkaroundProxy
+}
+ATTR AllConstraints [ nameP : (WorkaroundProxy name) varP : (WorkaroundProxy var) | | ]
+  
+SEM PP name, PP var => MonoExpr
+  | App    left  .nameP = WorkaroundProxy
+	   right .nameP = WorkaroundProxy
+	   left  .varP  = WorkaroundProxy
+	   right .varP  = WorkaroundProxy
+  | Arrow  source.nameP = WorkaroundProxy
+	   target.nameP = WorkaroundProxy
+	   source.varP  = WorkaroundProxy
+	   target.varP  = WorkaroundProxy
+	   
+SEM TyExpr
+  | T t.nameP = WorkaroundProxy
+      t.varP  = WorkaroundProxy
+
+SEM PP name, PP var => Constraint
+  | Eq left .nameP = WorkaroundProxy
+       right.nameP = WorkaroundProxy
+       left .varP  = WorkaroundProxy
+       right.varP  = WorkaroundProxy
+
+SEM PP name, PP var => Axiom
+  | Bind ty.nameP = WorkaroundProxy
+         ty.varP  = WorkaroundProxy
+
+SEM PP name, PP var => MonoExprs Constraints Axioms
+  | Cons hd.nameP = WorkaroundProxy
+         hd.varP  = WorkaroundProxy
 %%]

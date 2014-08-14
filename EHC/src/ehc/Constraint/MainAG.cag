@@ -1,0 +1,18 @@
+%%[0
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Haskell interface to AG generated code for compiler
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(99 constraint) hs module {%{EH}Constraint.MainAG} import(Language.Haskell.Constraint.Syntax,{%{EH}Constraint},UHC.Util.Pretty,{%{EH}Base.Common})
+%%]
+
+%%[(99 constraint) ag import({Constraint/FullAbsSyn})
+%%]
+
+%%[(99 constraint) ag import({Constraint/Pretty})
+%%]
+

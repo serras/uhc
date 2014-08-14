@@ -12,6 +12,7 @@
 %%[(99 constraint)
 DATA TyVar
   | Var nm : {HsName}
+DERIVING TyVar : Show
 
 TYPE TyVars = [TyVar]
 
@@ -19,12 +20,15 @@ DATA WildcardTyVar
   | Wildcard
   | NamedWildcard nm : {HsName}
   | NormalTyVar   vr : TyVar
-
+DERIVING WildcardTyVar : Show
+  
 DATA TyExpr
-  | T t : {MonoExpr HsName WildcardTyVar}
+  | T t : (MonoExpr HsName WildcardTyVar)
 
 TYPE TyExprs   = [TyExpr]
 TYPE OptTyExpr = MAYBE TyExpr
+
+SET AllTypes = TyVar TyVars WildcardTyVar TyExpr TyExprs OptTyExpr
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -102,6 +106,8 @@ DATA FuncDep
         toTvs   : TyVars
 
 TYPE FuncDeps = [FuncDep]
+
+SET AllDecls = Top Decl Decls Binding Bindings PatExpr PatExprs Signature Signatures DataCon DataCons DataField DataFields EqualityConstraint EqualityConstraints InstanceConstraint InstanceConstraints FuncDep FuncDeps
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -153,4 +159,6 @@ DATA Pattern
                 expr   : Pattern
   | Irrefutable expr   : Pattern
   | Bang        expr   : Pattern
+
+SET AllExprs = Expr CaseAlt CaseAlts Pattern
 %%]

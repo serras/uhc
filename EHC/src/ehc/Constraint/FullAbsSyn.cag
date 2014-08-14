@@ -15,24 +15,32 @@ DATA MonoExpr name var
   | Var   var    : {var}
   | Con   name   : {name}
   | Fam   name   : {name}
-  | App   left   : {MonoExpr name var}
-          right  : {MonoExpr name var}
+  | App   left   : (MonoExpr name var)
+          right  : (MonoExpr name var)
   | Star
-  | Arrow source : {MonoExpr name var}
-          target : {MonoExpr name var}
+  | Arrow source : (MonoExpr name var)
+          target : (MonoExpr name var)
 
+TYPE MonoExprs name var = [MonoExpr name var]
+	  
 DATA Constraint name var
   | Eq       level : {Level}
-             left  : {MonoExpr name var}
-             right : {MonoExpr name var}
+             left  : (MonoExpr name var)
+             right : (MonoExpr name var)
   | Instance cls   : {name}
-             args  : {[MonoExpr name var]}
+             args  : (MonoExprs name var)
+
+TYPE Constraints name var = [Constraint name var]
 
 DATA Axiom name var
   | Bind var   : {var}
          level : {Level}
-         ty    : {MonoExpr name var}
-         inner : {Axiom name var}
-  | Qual ctx   : {[Constraint name var]}
-         concl : {Constraint name var}
+         ty    : (MonoExpr name var)
+         inner : (Axiom name var)
+  | Qual ctx   : (Constraints name var)
+         concl : (Constraint name var)
+
+TYPE Axioms name var = [Axiom name var]
+
+SET AllConstraints = MonoExpr MonoExprs Constraint Constraints Axiom Axioms
 %%]
