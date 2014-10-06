@@ -19,6 +19,9 @@ Module analysis
 %%[50 import(Control.Monad.State)
 %%]
 
+%%[50 import({%{EH}Base.Optimize})
+%%]
+
 %%[50 import({%{EH}EHC.Common})
 %%]
 %%[50 import({%{EH}EHC.CompileUnit})
@@ -26,7 +29,7 @@ Module analysis
 %%[50 import({%{EH}EHC.CompileRun})
 %%]
 
-%%[50 import({%{EH}Module})
+%%[50 import({%{EH}Module.ImportExport})
 %%]
 %%[50 import(qualified {%{EH}Config} as Cfg)
 %%]
@@ -36,7 +39,7 @@ Module analysis
 %%[(50 codegen corein) import(qualified {%{EH}Core.Check} as Core2ChkSem)
 %%]
 
-%%[(50 codegen grin) hs import({%{EH}CodeGen.RefGenerator})
+%%[(50 codegen) hs import({%{EH}CodeGen.RefGenerator})
 %%]
 
 %%[50 import({%{EH}Base.Debug})
@@ -84,11 +87,19 @@ data GetMeta
   = GetMeta_Src
   | GetMeta_HI
   | GetMeta_Core
+%%[[(50 grin)
   | GetMeta_Grin
+%%]]
   | GetMeta_Dir
   deriving (Eq,Ord)
 
-allGetMeta = [GetMeta_Src, GetMeta_HI, GetMeta_Core, GetMeta_Grin, GetMeta_Dir]
+allGetMeta
+  = [ GetMeta_Src, GetMeta_HI, GetMeta_Core
+%%[[(50 grin)
+    , GetMeta_Grin
+%%]]
+    , GetMeta_Dir
+    ]
 
 %%]
 
@@ -105,7 +116,11 @@ cpGetCoreModnameAndImports modNm
               Just _ | ecuIsTopMod ecu -> cpUpdCUWithKey modNm (\_ ecu -> (modNm', upd $ cuUpdKey modNm' ecu))
                      | otherwise       -> do { cpUpdCU modNm upd ; return modNm }
               -}
-              Just _ -> cpUpdCUWithKey modNm (\_ ecu -> (modNm', cuUpdKey modNm' ecu))
+              Just _ -> cpUpdCUWithKey modNm $ \_ ecu ->
+                          ( modNm'
+                          , ecuStoreHSDeclImpS (Set.fromList $ Core2ChkSem.impModNmL_Syn_CodeAGItf crSemMod )
+                            $ cuUpdKey modNm' ecu
+                          )
               _      -> return modNm
          }
 %%]
@@ -165,7 +180,7 @@ cpGetMetaInfo gm modNm
                                               (mkInOrOutputFPathFor (InputFrom_Loc $ ecuFileLocation ecu) opts modNm fp "hi")
 %%]]
                  )
-%%[[(50 codegen)
+%%[[(50 codegen grin)
          ;  when (GetMeta_Grin `elem` gm)
                  (tm opts ecu ecuStoreGrinTime      (fpathSetSuff "grin"      fp     ))
 %%]]
@@ -237,6 +252,23 @@ cpUpdateModOffMp modNmL
                                            where (o, offset') = refGen1 offset 1 modNm
                             where new = crsiExpNmOffMp modNm crsi
        ; cpUpdSI (\crsi -> crsi {crsiModOffMp = offMp'})
+       }
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Generate list of all imported modules
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(50 codegen) export(cpGenImpNmInfo)
+-- | Compute imported module names
+cpGenImpNmInfo :: HsName -> EHCompilePhase [HsName]
+cpGenImpNmInfo modNm
+  = do { cr <- get
+       ; let (ecu,crsi,opts,fp) = crBaseInfo modNm cr
+             isWholeProg = ehcOptOptimizationScope opts > OptimizationScope_PerModule
+             impNmL     | isWholeProg = []
+                        | otherwise   = ecuImpNmL ecu
+       ; return impNmL
        }
 %%]
 

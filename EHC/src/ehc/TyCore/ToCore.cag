@@ -17,7 +17,7 @@ TBD:
 \end{itemize}
 %%]
 
-%%[(8 codegen tycore) hs module {%{EH}TyCore.ToCore} import({%{EH}Base.Builtin},{%{EH}Opts},{%{EH}Base.Common})
+%%[(8 codegen tycore) hs module {%{EH}TyCore.ToCore} import({%{EH}Base.HsName.Builtin},{%{EH}Opts},{%{EH}Base.Common})
 %%]
 
 %%[(8 codegen tycore) hs import(UHC.Util.Utils)
@@ -150,7 +150,7 @@ SEM ExprSeq1 FldBind MbExpr ValBind Alt Pat
 ATTR Module AGItf [ | | core: CModule ]
 
 SEM Module
-  | Mod         lhs         .   core                =   CModule_Mod @moduleNm [] (mkLet CBindCateg_Rec @vbinds.core (acoreBuiltinUndefined @lhs.opts)) -- []
+  | Mod         lhs         .   core                =   CModule_Mod @moduleNm [] [] (mkLet CBindCateg_Rec @vbinds.core (acoreBuiltinUndefined @lhs.opts)) -- []
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

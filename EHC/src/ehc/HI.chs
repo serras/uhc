@@ -7,7 +7,7 @@
 %%% Haskell importable interface to HI/AbsSyn
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[50 hs module {%{EH}HI} import({%{EH}Base.Common},{%{EH}Opts},{%{EH}Base.Builtin},{%{EH}NameAspect})
+%%[50 hs module {%{EH}HI} import({%{EH}Base.Common},{%{EH}Opts},{%{EH}Base.HsName.Builtin},{%{EH}NameAspect})
 %%]
 
 %%[50 hs import ({%{EH}Gam.Full})
@@ -26,12 +26,12 @@
 %%[(50 codegen tycore) hs import(qualified {%{EH}TyCore} as C)
 %%]
 
-%%[(50 codegen grin) hs import({%{EH}GrinCode})
+%%[(50 grin) hs import({%{EH}GrinCode})
 %%]
-%%[(50 codegen grin) hs import({%{EH}GrinByteCode})
+%%[(50 grin) hs import({%{EH}GrinByteCode})
 %%]
 
-%%[50 hs import({%{EH}Config},{%{EH}Module})
+%%[50 hs import({%{EH}Config},{%{EH}Module.ImportExport})
 %%]
 
 %%[(50 hmtyinfer) hs import({%{EH}Pred.ToCHR},{%{EH}CHR.Solve},qualified {%{EH}Gam.ClGam} as Pr)

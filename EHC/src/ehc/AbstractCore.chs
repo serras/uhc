@@ -8,7 +8,7 @@
 %%[8 import({%{EH}Base.Common})
 %%]
 
-%%[(8 codegen) import({%{EH}Base.Builtin},{%{EH}Base.TermLike},{%{EH}Opts.Base},{%{EH}Ty})
+%%[(8 codegen) import({%{EH}Base.HsName.Builtin},{%{EH}Base.TermLike},{%{EH}Opts.Base},{%{EH}Ty})
 %%]
 
 %%[(8 codegen) import(UHC.Util.Pretty,UHC.Util.Utils)
@@ -17,9 +17,9 @@
 %%[(8 codegen) import(Data.List, Data.Maybe, qualified Data.Map as Map, qualified Data.Set as Set, Control.Applicative((<|>),(<$>)))
 %%]
 
-%%[(50 codegen grin) hs import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
+%%[(50 codegen) hs import(Control.Monad, UHC.Util.Binary, UHC.Util.Serialize)
 %%]
-%%[(50 codegen grin) hs import(Data.Typeable(Typeable), Data.Generics(Data))
+%%[(50 codegen) hs import(Data.Typeable(Typeable), Data.Generics(Data))
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1474,26 +1474,63 @@ data AppFunKind
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 codegen) hs export(WhatExpr(..))
+
+-- | What kind of Expr?
 data WhatExpr
-  = ExprIsLam
+  = ExprIsLam   Int			-- arity
   | ExprIsApp   Int         -- arity
+  				WhatExpr	-- function
   | ExprIsVar   HsName
   | ExprIsInt   Int
+  | ExprIsTup   CTag
+  | ExprIsOtherWHNF
   | ExprIsOther
   | ExprIsBind
   deriving Eq
 %%]
 
-%%[(8 codegen) hs export(whatExprMbApp,whatExprAppArity)
+%%[(8 codegen) hs export(whatExprMbVar, whatExprMbApp,whatExprMbLam,whatExprAppArity)
+-- | is an var?
+whatExprMbVar :: WhatExpr -> Maybe HsName
+whatExprMbVar (ExprIsVar a) = Just a
+whatExprMbVar _             = Nothing
+
 -- | is an app?
-whatExprMbApp :: WhatExpr -> Maybe Int
-whatExprMbApp (ExprIsApp a) = Just a
-whatExprMbApp _             = Nothing
+whatExprMbApp :: WhatExpr -> Maybe (Int,WhatExpr)
+whatExprMbApp (ExprIsApp a w) = Just (a,w)
+whatExprMbApp _               = Nothing
+
+-- | is a lam?
+whatExprMbLam :: WhatExpr -> Maybe Int
+whatExprMbLam (ExprIsLam a) = Just a
+whatExprMbLam _             = Nothing
 
 -- | app arity
 whatExprAppArity :: WhatExpr -> Int
-whatExprAppArity (ExprIsApp a) = a
-whatExprAppArity _             = 0
+whatExprAppArity (ExprIsApp a _) = a
+whatExprAppArity _               = 0
+%%]
+
+%%[(8 codegen) hs export(whatExprIsWHNF)
+whatExprIsWHNF :: WhatExpr -> Bool
+whatExprIsWHNF (ExprIsLam _) 	= True
+whatExprIsWHNF (ExprIsVar _) 	= True
+whatExprIsWHNF (ExprIsInt _) 	= True
+whatExprIsWHNF (ExprIsTup _) 	= True
+whatExprIsWHNF ExprIsOtherWHNF 	= True
+whatExprIsWHNF _ 				= False
+%%]
+
+%%[(8 codegen) hs export(whatExprIsLam, whatExprIsTup)
+whatExprIsLam :: WhatExpr -> Bool
+whatExprIsLam = isJust . whatExprMbLam
+{-# INLINE whatExprIsLam #-}
+
+-- | Is Expr a Tup?
+whatExprIsTup :: WhatExpr -> Bool
+whatExprIsTup (ExprIsTup _) = True
+whatExprIsTup _             = False
+
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

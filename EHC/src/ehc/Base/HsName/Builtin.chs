@@ -2,7 +2,7 @@
 %%% Builtin: names, ...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[1 module {%{EH}Base.Builtin} import({%{EH}Base.HsName}, Data.Maybe)
+%%[1 module {%{EH}Base.HsName.Builtin} import({%{EH}Base.HsName}, Data.Maybe)
 %%]
 
 %%[1 import(UHC.Util.Utils)
@@ -29,15 +29,13 @@ strProd :: Int -> String
 %%]
 
 %%[1.HsName.Base.itf
-hsnArrow, hsnUnknown, hsnInt, hsnChar, hsnWild
-                                    ::  HsName
+hsnArrow, hsnInt, hsnChar, hsnWild  ::  HsName
 hsnProd                             ::  Int -> HsName
 hsnProdArity                        ::  HsName -> Int
 %%]
 
 %%[1.HsName.Base.impl
 hsnArrow                            =   hsnFromString "->"
-hsnUnknown                          =   hsnFromString "??"
 hsnInt                              =   hsnFromString "Int"
 hsnChar                             =   hsnFromString "Char"
 hsnWild                             =   hsnFromString "_"

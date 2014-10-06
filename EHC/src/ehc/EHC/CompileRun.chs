@@ -10,7 +10,7 @@ An EHC compile run maintains info for one compilation invocation
 -- general imports
 %%[8 import(qualified Data.Map as Map,qualified Data.Set as Set)
 %%]
-%%[8 import(System.IO, System.Exit, System.Environment, System.Process, System.Cmd(rawSystem))
+%%[8 import(System.IO, System.Exit, System.Environment, System.Process)
 %%]
 %%[99 import(UHC.Util.Time, System.CPUTime, System.Locale, Data.IORef, System.IO.Unsafe)
 %%]
@@ -44,7 +44,7 @@ An EHC compile run maintains info for one compilation invocation
 %%[8 import(qualified {%{EH}EH.MainAG} as EHSem, qualified {%{EH}HS.MainAG} as HSSem)
 %%]
 -- Language semantics: Core
-%%[(8 codegen grin) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%[(8 core) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
 %%]
 
 -- HI Syntax and semantics, HS module semantics
@@ -53,7 +53,7 @@ An EHC compile run maintains info for one compilation invocation
 %%[50 import(qualified {%{EH}HS.ModImpExp} as HSSemMod)
 %%]
 -- module admin
-%%[50 import({%{EH}Module})
+%%[50 import({%{EH}Module.ImportExport})
 %%]
 
 -- Misc
@@ -455,13 +455,13 @@ crPartitionIntoPkgAndOthers :: EHCompileRun -> [HsName] -> ([PkgModulePartition]
 crPartitionIntoPkgAndOthers cr modNmL
   = ( [ (p,d,m)
       | ((p,d),m) <- Map.toList $ Map.unionsWith (++) $ map Map.fromList ps
-      ] -- nub $ concat ps
+      ]
     , concat ms
     )
   where (ps,ms) = unzip $ map loc modNmL
         loc m = case filelocKind $ ecuFileLocation ecu of
-                  FileLocKind_Dir	  -> ([]         ,[m])
-                  FileLocKind_Pkg p d -> ([((p,d),[m])],[] )
+                  FileLocKind_Dir	  -> ([           ], [m])
+                  FileLocKind_Pkg p d -> ([((p,d),[m])], [ ])
               where (ecu,_,_,_) = crBaseInfo m cr
 %%]
 
@@ -476,9 +476,10 @@ crSetAndCheckMain modNm
        ; let (crsi,opts) = crBaseInfo' cr
              mkerr lim ns = cpSetLimitErrs 1 "compilation run" [rngLift emptyRange Err_MayOnlyHaveNrMain lim ns modNm]
        ; case crsiMbMainNm crsi of
-           Just n | n /= modNm      -> mkerr 1 [n]
-           _ | ehcOptDoLinking opts -> cpUpdSI (\crsi -> crsi {crsiMbMainNm = Just modNm})
-             | otherwise            -> mkerr 0 []
+           Just n | n /= modNm          -> mkerr 1 [n]
+           _ | ehcOptDoExecLinking opts -> cpUpdSI (\crsi -> crsi {crsiMbMainNm = Just modNm})
+             | otherwise                -> return ()
+                                           -- mkerr 0 []
        }
 %%]
 

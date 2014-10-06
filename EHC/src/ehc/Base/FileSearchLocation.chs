@@ -142,11 +142,14 @@ showPkgKey = show . mkHNm
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[99 export(PackageSearchFilter(..))
+-- | Description of hiding/exposing pkgs, determining the used packages for looking up modules.
 data PackageSearchFilter
+  -- Note: the below order is important, it is used for sorting just before having its effect on searchable packages.
+  -- The current order means that in its filtering hiding is done first, thereby starting out with all available pkgs, then hide (all), then expose selectively
   = PackageSearchFilter_HideAll
   | PackageSearchFilter_HidePkg			[PkgKey]
   | PackageSearchFilter_ExposePkg		[PkgKey]
-  deriving Show
+  deriving (Show, Eq, Ord)
 %%]
 
 %%[99 export(pkgSearchFilter)
@@ -163,26 +166,28 @@ pkgSearchFilter mkKey mk ss
 %%[99 export(PackageCfgKeyVals,PackageInfo(..),PackageMp,Module2PackageMp,PackageDatabase(..),emptyPackageMp,emptyPackageDatabase)
 type PackageCfgKeyVals = Map.Map String String
 
+-- | Per package info
 data PackageInfo
   = PackageInfo
-      { pkginfoLoc					:: !FileLoc						-- directory location
-      , pkginfoOrder				:: !Int							-- for multiple packages the relative order
+      { pkginfoLoc					:: !FileLoc						-- ^ directory location
+      , pkginfoOrder				:: !Int							-- ^ for multiple packages the relative order
       -- , pkginfoKeyVals				:: PackageCfgKeyVals			-- key/value pairs of pkg config info
-      , pkginfoExposedModules		:: !HsNameS						-- exposed modules
-      , pkginfoIsExposed		    :: !Bool						-- pkg is exposed?
+      , pkginfoExposedModules		:: !HsNameS						-- ^ exposed modules
+      , pkginfoBuildDepends			:: !(Set.Set PkgKey)			-- ^ pkgs dependend on
+      , pkginfoIsExposed		    :: !Bool						-- ^ pkg is exposed?
       }
       deriving Show
 
--- content of a package (keys are name, then version)
+-- | content of a package (keys are name, then version)
 type PackageMp = Map.Map PkgKey1 (Map.Map PkgKey2 [PackageInfo])
 
 emptyPackageMp :: PackageMp
 emptyPackageMp = Map.empty
 
--- reverse map from module name to package key
+-- | reverse map from module name to package key
 type Module2PackageMp = Map.Map HsName [PkgKey]
 
--- A package database contains an actual package map, plus a function
+-- | A package database contains an actual package map, plus a function
 -- that maps modules to associated package maps. The latter is computed
 -- by "freezing" the package database using "pkgDbFreeze".
 data PackageDatabase

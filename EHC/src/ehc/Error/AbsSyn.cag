@@ -20,6 +20,12 @@ DATA Err
 %%% Error structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%%[1
+DATA Err
+  | PP          		pp         : {PP_Doc}
+  | Str          		str        : {String}
+%%]
+
 %%[(1 hmtyinfer || hmtyast).UnifyClash
 DATA Err
   | UnifyClash          ty1        : {Ty}
@@ -144,7 +150,6 @@ DATA Err
 %%][99
                         entities   : {[ThingAndRange HsName]}
 %%]]
-  | PP                  pp         : {PP_Doc}
 %%]
 
 %%[(8 codegen)
@@ -204,7 +209,7 @@ DATA Err
 
 %%[50
 DATA Err
-  | MayOnlyHaveNrMain   nrAllowed  : Int        -- 0 or 1, depending on option ehcOptDoLinking
+  | MayOnlyHaveNrMain   nrAllowed  : Int        -- 0 or 1, depending on option ehcOptDoExecLinking
                         prevModNmL : {[HsName]} -- possible previous modules in which main was defined
                         modNm      : HsName
   | MayNotHaveMain      modNm      : HsName

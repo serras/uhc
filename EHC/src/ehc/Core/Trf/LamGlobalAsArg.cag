@@ -31,7 +31,7 @@ in ...f g...
 %%[(8 codegen) hs module {%{EH}Core.Trf.LamGlobalAsArg} import(UHC.Util.Utils,Data.Maybe,qualified Data.Set as Set,Data.List,qualified Data.Map as Map)
 %%]
 
-%%[(8 codegen) hs import({%{EH}Base.Builtin},{%{EH}Base.Common},{%{EH}Core},{%{EH}Ty})
+%%[(8 codegen) hs import({%{EH}Base.HsName.Builtin},{%{EH}Base.Common},{%{EH}Core},{%{EH}Ty})
 %%]
 
 %%[(8 codegen) hs import({%{EH}Core.Utils})
@@ -46,7 +46,7 @@ in ...f g...
 %%[(8 codegen) hs import(Debug.Trace)
 %%]
 
-%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/Trf/CommonFv},{Core/Trf/CommonLev},{Core/Trf/CommonGlobalAsArg})
+%%[(8 codegen).WRAPPER ag import({Core/AbsSyn},{Core/CommonLev},{Core/CommonLevAlt},{Core/CommonLevLamPer1Lam},{Core/CommonCtxtPred},{Core/CommonBindNm},{Core/Trf/CommonFv},{Core/Trf/CommonLev},{Core/Trf/CommonGlobalAsArg})
 WRAPPER CodeAGItf
 %%]
 

@@ -29,7 +29,7 @@
 %%[7 import(qualified Data.Set as Set)
 %%]
 
-%%[8 import(Data.List,{%{EH}Base.Builtin})
+%%[8 import(Data.List,{%{EH}Base.HsName.Builtin})
 %%]
 
 %%[8 import(UHC.Util.FPath)
@@ -118,7 +118,12 @@ instance Show CoreOpt where
 %%[[(8 coreout)
   -- show CoreOpt_PPParseable      = "pp-parseable"
   show CoreOpt_Dump             	= "dump"
+  show CoreOpt_DumpBinary	      	= "dump-binary"
   show CoreOpt_DumpAlsoNonParseable	= "whendump-alsononparseable"
+%%]]
+%%[[(8 corerun)
+  show CoreOpt_DumpRun            	= "dump-run"
+  show CoreOpt_Run            	    = "run"
 %%]]
 %%[[(8 coresysf)
   show CoreOpt_SysF             	= "sysf"
@@ -185,7 +190,7 @@ Some are there for (temporary) backwards compatibility.
 -- do something with whole program
 ehcOptWholeProgOptimizationScope :: EHCOpts -> Bool
 ehcOptWholeProgOptimizationScope opts
-  = ehcOptOptimizationScope opts >= OptimizationScope_WholeGrin
+  = ehcOptOptimizationScope opts > OptimizationScope_PerModule
 %%]
 
 %%[(50 codegen) export(ehcOptEarlyModMerge)
@@ -365,6 +370,8 @@ ehcCmdLineOpts
 %%]]
 %%[[(8 codegen)
      ,  Option ""   ["gen-trampoline"]      (boolArg oSetGenTrampoline)             "codegen: use trampoline mechanism (development/internal use only)"
+%%]]
+%%[[(8 grin)
      ,  Option ""   ["gen-boxgrin"]      	(boolArg oSetGenBoxGrin)             	"codegen: generate simplified grin wrt boxing (development/internal use only)"
 %%]]
 %%[[(8 codegen)
@@ -410,8 +417,8 @@ ehcCmdLineOpts
      ,  Option "L"  ["lib-search-path"]     (ReqArg oLibFileLocPath "path")         "search path for library files, see also --import-path"
      ,  Option ""   ["cpp"]                 (NoArg oCPP)                            "preprocess source with CPP"
      ,  Option ""   ["limit-tysyn-expand"]  (intArg oLimitTyBetaRed)                "type synonym expansion limit"     
-     ,  Option ""   ["odir"]                (ReqArg oOutputDir "dir")               "base directory for generated files. Implies --compile-only"
-     ,  Option "o"  ["output"]              (ReqArg oOutputFile "file")             "file to generate executable to"
+     ,  Option ""   ["odir"]                (ReqArg oOutputDir "dir")               "base directory for generated files"
+     ,  Option "o"  ["output"]              (ReqArg oOutputFile "file")             "file to generate executable to (implies --compile-only off)"
      ,  Option ""   ["keep-intermediate-files"] (NoArg oKeepIntermediateFiles)      "keep intermediate files (default=off)"
 %%]]
 %%[[(99 hmtyinfer tyderivtree)
@@ -430,11 +437,15 @@ ehcCmdLineOpts
      ,  Option ""   ["meta-pkgdir-user"]    (NoArg oMetaPkgdirUser)                 "meta: print user package dir (then stop)"
      ,  Option ""   ["package"]             (ReqArg oExposePackage "package")       "see --pkg-expose"
      ,  Option ""   ["hide-all-packages"]   (NoArg oHideAllPackages)                "see --pkg-hide-all"
-     ,  Option ""   ["pkg-build"]           (ReqArg oPkgBuild "package")            "pkg: build package from files. Implies --compile-only"
      ,  Option ""   ["pkg-expose"]          (ReqArg oExposePackage "package")       "pkg: expose/use package"
      ,  Option ""   ["pkg-hide"]            (ReqArg oHidePackage   "package")       "pkg: hide package"
      ,  Option ""   ["pkg-hide-all"]        (NoArg oHideAllPackages)                "pkg: hide all (implicitly) assumed/used packages"
      ,  Option ""   ["pkg-searchpath"]      (ReqArg oPkgdirLocPath "path")          "pkg: package search directories, each dir has <pkg>/<variant>/<target>/<flavor>"
+     ,  Option ""   ["pkg-build"]           (ReqArg oPkgBuild "package")            "pkg build: build package from files. Implies --compile-only"
+     ,  Option ""   ["pkg-build-exposed"]   (ReqArg oPkgBuildExposedModules "modules")
+     																				"pkg build: for package building, exposed modules (blank separated)"
+     ,  Option ""   ["pkg-build-depends"]   (ReqArg oPkgBuildBuildDepends "packages")
+     																				"pkg build: for package building, depended on packages (blank separated)"
      ,  Option ""   ["cfg-install-root"]    (ReqArg oCfgInstallRoot "dir")          "cfg: installation root (to be used only by wrapper script)"
      ,  Option ""   ["cfg-install-variant"] (ReqArg oCfgInstallVariant "variant")   "cfg: installation variant (to be used only by wrapper script)"
      ,  Option ""   ["optP"]                (ReqArg (oCmdLineOpts Cmd_CPP_Preprocessing) "opt for cmd")
@@ -501,8 +512,8 @@ ehcCmdLineOpts
 %%[[7_2
          oUnique         o =  o { ehcOptUniqueness    = False   }
 %%]]
-%%[[(8 codegen)
-         oTimeCompile    o =  o { ehcOptTimeCompile       = True    }
+%%[[(8 grin)
+         oTimeCompile    o =  o { ehcOptTimeGrinCompile       = True    }
 %%]]
 %%[[(8 codegen)
          oOptCore    s   o =  o { ehcOptCoreOpts = optOpts coreOptMp s ++ ehcOptCoreOpts o}
@@ -533,7 +544,7 @@ ehcCmdLineOpts
          oTarget        s o =  o { ehcOptMbTarget          = mbtarget
 %%[[50
                                  , ehcOptOptimizationScope = if isJustOk mbtarget && targetDoesHPTAnalysis (fromJustOk mbtarget)
-                                                             then max oscope OptimizationScope_WholeGrin
+                                                             then max oscope (maxBound :: OptimizationScope)
                                                              else oscope
 %%]]
                                  }
@@ -630,7 +641,7 @@ ehcCmdLineOpts
                                 Just "4"    -> o { ehcOptVerbosity     = VerboseDebug       }
                                 Nothing     -> o { ehcOptVerbosity     = succ (ehcOptVerbosity o)}
                                 _           -> o
-%%[[(8 codegen grin)
+%%[[(8 codegen)
          oOptimization ms o
                            = o' {ehcOptOptimizations = optimizeRequiresClosure os}
                            where (o',doSetOpts)
@@ -694,7 +705,7 @@ ehcCmdLineOpts
 %%]]
 %%[[50
          oNoRecomp              o   = o { ehcOptCheckRecompile              = False    }
-         oCompileOnly           o   = o { ehcOptDoLinking                   = False    }
+         oCompileOnly           o   = o { ehcOptLinkingStyle                = LinkingStyle_None }
 %%]]
 %%[[99
          oNoHiCheck             o   = o { ehcOptHiValidityCheck             = False    }
@@ -709,8 +720,8 @@ ehcCmdLineOpts
          oLimitCtxtRed          o l = o { ehcOptPrfCutOffAt                 = l }
          oMetaPkgdirSys         o   = o { ehcOptImmQuit                     = Just ImmediateQuitOption_Meta_Pkgdir_System }
          oMetaPkgdirUser        o   = o { ehcOptImmQuit                     = Just ImmediateQuitOption_Meta_Pkgdir_User }
-         oExposePackage       s o   = o { ehcOptLibPackages                 = ehcOptLibPackages   o ++ [s]
-                                        , ehcOptPackageSearchFilter         = ehcOptPackageSearchFilter o ++ pkgSearchFilter parsePkgKey PackageSearchFilter_ExposePkg [s]
+         oExposePackage       s o   = o { ehcOptPackageSearchFilter         = ehcOptPackageSearchFilter o ++ pkgSearchFilter parsePkgKey PackageSearchFilter_ExposePkg [s]
+                                        -- , ehcOptLibPackages                 = ehcOptLibPackages   o ++ [s]
                                         }
          oHidePackage         s o   = o { ehcOptPackageSearchFilter         = ehcOptPackageSearchFilter o ++ pkgSearchFilter parsePkgKey PackageSearchFilter_HidePkg [s]
                                         }
@@ -719,14 +730,20 @@ ehcCmdLineOpts
                                         }
          oOutputDir           s o   = o { ehcOptOutputDir                   = Just s
                                           -- no linking when no output file is generated. This is not failsafe, requires better solution as now no executable is generated when no --output is specified. Should depend on existence of main.
-                                        , ehcOptDoLinking                   = isJust (ehcOptMbOutputFile o)
+                                        -- , ehcOptDoExecLinking                   = isJust (ehcOptMbOutputFile o)
                                         }
          oOutputFile          s o   = o { ehcOptMbOutputFile                = Just (mkFPath s)
-                                        , ehcOptDoLinking                   = True
+                                        , ehcOptLinkingStyle                = LinkingStyle_Exec
                                         }
          oKeepIntermediateFiles o   = o { ehcOptKeepIntermediateFiles       = True }
-         oPkgBuild            s o   = o { ehcOptPkg                         = Just (PkgOption_Build s)
-                                        , ehcOptDoLinking                   = False
+         oPkgBuild            s o   = o { ehcOptPkgOpt                      = Just ((maybe emptyPkgOption id $ ehcOptPkgOpt o) {pkgoptName=s})
+                                        , ehcOptLinkingStyle                = LinkingStyle_Pkg
+                                        }
+         oPkgBuildExposedModules
+                              s o   = o { ehcOptPkgOpt                      = Just ((maybe emptyPkgOption id $ ehcOptPkgOpt o) {pkgoptExposedModules = words s})
+                                        }
+         oPkgBuildBuildDepends
+                              s o   = o { ehcOptPkgOpt                      = Just ((maybe emptyPkgOption id $ ehcOptPkgOpt o) {pkgoptBuildDepends = words s})
                                         }
          oCfgInstallRoot      s o   = o { ehcOptCfgInstallRoot              = Just s }
          oCfgInstallVariant   s o   = o { ehcOptCfgInstallVariant           = Just s }
@@ -829,6 +846,10 @@ optDumpCoreStages    o b = o { ehcOptDumpCoreStages = b }
 optDumpJavaScriptStages o b = o { ehcOptDumpJavaScriptStages = b }
 %%]
 
+%%[(8 codegen)
+oSetGenTrampoline	 o b = o { ehcOptGenTrampoline_ = b }
+%%]
+
 %%[(8 codegen grin)
 optSetGenTrace       o b = o { ehcOptGenTrace       = b }
 optSetGenTrace2      o b = o { ehcOptGenTrace2      = b }
@@ -836,7 +857,6 @@ optSetGenRTSInfo     o b = o { ehcOptGenRTSInfo     = b }
 optSetGenCaseDefault o b = o { ehcOptGenCaseDefault = b }
 optSetGenCmt         o b = o { ehcOptGenCmt         = b }
 optSetGenDebug       o b = o { ehcOptGenDebug       = b }
-oSetGenTrampoline	 o b = o { ehcOptGenTrampoline_ = b }
 oSetGenBoxGrin		 o b = o { ehcOptGenBoxGrin_    = b }
 optDumpGrinStages    o b = o { ehcOptDumpGrinStages = b {-, ehcOptEmitGrin = b -} }
 -- optEarlyModMerge     o b = o { ehcOptEarlyModMerge  = b }

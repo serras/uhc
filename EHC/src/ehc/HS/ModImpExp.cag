@@ -8,7 +8,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-%%[50 hs module {%{EH}HS.ModImpExp} import({%{EH}Base.Builtin},{%{EH}Base.Common}, {%{EH}Opts}, {%{EH}HS}, {%{EH}Gam.Full}, {%{EH}NameAspect})
+%%[50 hs module {%{EH}HS.ModImpExp} import({%{EH}Base.HsName.Builtin},{%{EH}Base.Common}, {%{EH}Opts}, {%{EH}HS}, {%{EH}Gam.Full}, {%{EH}NameAspect})
 %%]
 
 %%[50 hs export(Inh_AGItf(..),Syn_AGItf(..),sem_AGItf,wrap_AGItf)
@@ -17,7 +17,7 @@
 %%[50 hs import(qualified Data.Set as Set,qualified Data.Map as Map,Data.Maybe)
 %%]
 
-%%[50 hs import(qualified UHC.Util.Rel as Rel,{%{EH}Module})
+%%[50 hs import(qualified UHC.Util.Rel as Rel,{%{EH}Module.ImportExport})
 %%]
 
 %%[97 hs import({%{EH}Base.Debug} as Debug, UHC.Util.Pretty)

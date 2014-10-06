@@ -5,16 +5,13 @@
 %%[(8 codegen cmm javascript) hs module {%{EH}Cmm.ToJavaScript}
 %%]
 
-%%[(8 codegen cmm javascript) hs import({%{EH}Base.Builtin},{%{EH}Cmm},{%{EH}Base.Common} hiding (Range),{%{EH}Opts})
+%%[(8 codegen cmm javascript) hs import({%{EH}Base.HsName.Builtin},{%{EH}Cmm},{%{EH}Base.Common} hiding (Range),{%{EH}Opts})
 %%]
 
 %%[(8 codegen cmm javascript) hs import({%{EH}Error})
 %%]
 
 %%[(8 codegen cmm javascript) hs import(qualified {%{EH}JavaScript} as JS)
-%%]
-
-%%[(88 codegen cmm javascript) hs import(UHC.Util.Pretty,{%{EH}Base.GenC})
 %%]
 
 %%[(8 codegen cmm javascript) hs import({%{EH}CodeGen.ValAccess} as VA, {%{EH}CodeGen.CVar})

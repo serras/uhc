@@ -2,7 +2,7 @@
 %%% Level, let also one level higher
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen grin)
+%%[(8 core)
 SEM CExpr
   | Let         binds       .   lev         =   @lhs.lev + 1
 %%]

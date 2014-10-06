@@ -29,7 +29,7 @@ Folding over AST to compute semantics
 %%[8 import(qualified {%{EH}HS.MainAG} as HSSem)
 %%]
 -- Core syntax and semantics
-%%[(8 codegen grin) import(qualified {%{EH}Core} as Core, qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%[(8 core) import(qualified {%{EH}Core} as Core, qualified {%{EH}Core.ToGrin} as Core2GrSem)
 %%]
 %%[(50 codegen corein) import(qualified {%{EH}Core.Check} as Core2ChkSem)
 %%]
@@ -44,7 +44,7 @@ Folding over AST to compute semantics
 -- Module
 %%[50 import(qualified UHC.Util.Rel as Rel)
 %%]
-%%[50 import({%{EH}Module})
+%%[50 import({%{EH}Module.ImportExport})
 %%]
 %%[50 import(qualified {%{EH}HS.ModImpExp} as HSSemMod)
 %%]
@@ -57,13 +57,13 @@ Folding over AST to compute semantics
 %%% Compile actions: computing semantics
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 codegen) export(cpFoldCore)
-cpFoldCore :: HsName -> EHCompilePhase ()
-cpFoldCore modNm
+%%[(8 codegen) export(cpFoldCore2Grin)
+cpFoldCore2Grin :: HsName -> EHCompilePhase ()
+cpFoldCore2Grin modNm
   =  do  {  cr <- get
          ;  let  (ecu,crsi,opts,_) = crBaseInfo modNm cr
                  mbCore   = ecuMbCore ecu
-                 core     = panicJust "cpFoldCore" mbCore
+                 core     = panicJust "cpFoldCore2Grin" mbCore
                  coreInh  = crsiCoreInh crsi
                  coreSem  = Core2GrSem.wrap_CodeAGItf
                               (Core2GrSem.sem_CodeAGItf (Core.CodeAGItf_AGItf core))
@@ -159,7 +159,7 @@ cpFoldHs modNm
 %%[[50
                      ; when (ehcOptVerbosity opts >= VerboseDebug)
                             (lift $ putStrLn (show modNm ++ " hasMain=" ++ show hasMain))
-                     ; when hasMain (crSetAndCheckMain modNm)
+                     -- ; when hasMain (crSetAndCheckMain modNm)
 %%]]
                      })
          }
@@ -209,7 +209,7 @@ cpFoldHIInfo modNm
                                                 ( -- (\v -> tr "cpFoldHIInfo.hiiExps" (pp v) v) $
                                                  HI.hiiExps hiInfo)
                                                 (HI.hiiHiddenExps hiInfo)
-                     ; when hasMain (crSetAndCheckMain modNm)
+                     -- ; when hasMain (crSetAndCheckMain modNm)
                      ; cpUpdSI (\crsi -> crsi {crsiModMp = Map.insert modNm mmi' mm})
                      ; cpUpdCU modNm ( ecuStorePrevHIInfo hiInfo
                                      . ecuStoreHIDeclImpS (HI.hiiHIDeclImpModS hiInfo)

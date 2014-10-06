@@ -56,7 +56,9 @@ level 2..6 : with prefix 'cpEhc'
 %%]
 %%[8 import({%{EH}EHC.CompilePhase.Output})
 %%]
-%%[(8 codegen grin) import({%{EH}EHC.CompilePhase.Transformations},{%{EH}EHC.CompilePhase.TransformGrin})
+%%[(8 codegen) import({%{EH}EHC.CompilePhase.Transformations})
+%%]
+%%[(8 grin) import({%{EH}EHC.CompilePhase.TransformGrin})
 %%]
 %%[8 import({%{EH}EHC.CompilePhase.Semantics})
 %%]
@@ -74,7 +76,7 @@ level 2..6 : with prefix 'cpEhc'
 %%]
 %%[(99 codegen) import({%{EH}EHC.CompilePhase.Link})
 %%]
-%%[50 import({%{EH}EHC.CompilePhase.Module},{%{EH}Module})
+%%[50 import({%{EH}EHC.CompilePhase.Module},{%{EH}Module.ImportExport})
 %%]
 %%[99 import({%{EH}Base.Pragma})
 %%]
@@ -84,9 +86,12 @@ level 2..6 : with prefix 'cpEhc'
 -- Language syntax: Core
 %%[(50 codegen) import(qualified {%{EH}Core} as Core(cModMerge))
 %%]
-%%[(50 codegen) import({%{EH}Core.Utils} (cModMerge2))
+%%[(50 codegen) import(qualified {%{EH}Core.Merge} as CMerge (cModMerge))
 %%]
 %%[(50 codegen corein) import(qualified {%{EH}Core.Check} as Core2ChkSem)
+%%]
+-- CoreRun
+%%[(8 corerun) import({%{EH}EHC.CompilePhase.Run})
 %%]
 -- Language syntax: TyCore
 %%[(8 codegen tycore) import(qualified {%{EH}TyCore.Full2} as C)
@@ -112,18 +117,16 @@ cpEhcFullProgLinkAllModules modNmL
             (_,opts) = crBaseInfo' cr   -- '
       ; when (not $ null modNmL)
              (cpMsg (head modNmL) VerboseDebug ("Main mod split: " ++ show mainModNmL ++ ": " ++ show impModNmL))
-      ; case mainModNmL of
-          [mainModNm]
-            | ehcOptDoLinking opts
+      ; case (mainModNmL, ehcOptLinkingStyle opts) of
+          ([mainModNm], LinkingStyle_Exec)
                 -> case () of
                      () | ehcOptOptimizationScope opts >= OptimizationScope_WholeCore
                             -> cpSeq (  hpt
+%%[[(99 grin)
                                      ++ [ cpProcessAfterGrin mainModNm
-%%[[99
                                         , cpCleanupGrin [mainModNm]
-%%]]
                                         ]
-
+%%]]
                                      ++ exec
                                      )
                         | targetDoesHPTAnalysis (ehcOptTarget opts)
@@ -134,24 +137,31 @@ cpEhcFullProgLinkAllModules modNmL
                               hpt  = [ cpEhcFullProgPostModulePhases opts modNmL (impModNmL,mainModNm)
                                      , cpEhcCorePerModulePart2 mainModNm
                                      ]
-            | otherwise
-                -> cpSetLimitErrs 1 "compilation run" [rngLift emptyRange Err_MayNotHaveMain mainModNm]
-          _ | ehcOptDoLinking opts
-                -> cpSetLimitErrs 1 "compilation run" [rngLift emptyRange Err_MustHaveMain]
-            | otherwise
-%%[[50
+          ([mainModNm], _)
                 -> return ()
-%%][99
-                -> case ehcOptPkg opts of
-                     Just (PkgOption_Build pkg)
-                       | targetAllowsOLinking (ehcOptTarget opts)
-                         -> cpLinkO impModNmL pkg
-%%[[(99 jazy)
-                       | targetAllowsJarLinking (ehcOptTarget opts)
-                         -> cpLinkJar Nothing impModNmL (JarMk_Pkg pkg)
-%%]]
-                     _ -> return ()
-%%]]
+                   -- cpSetLimitErrs 1 "compilation run" [rngLift emptyRange Err_MayNotHaveMain mainModNm]
+          ([], LinkingStyle_Exec)
+                -> cpSetLimitErrs 1 "compilation run" [rngLift emptyRange Err_MustHaveMain]
+          ([], LinkingStyle_None)
+                -> return ()
+%%[[99
+          ([], LinkingStyle_Pkg)
+                -> do let cfgwr o = liftIO $ pkgWritePkgOptionAsCfg o fp
+                            where (fp,_) = mkInOrOutputFPathDirFor OutputFor_Pkg opts l l ""
+                                  l = mkFPath ""
+                      case ehcOptPkgOpt opts of
+                        Just (pkgopt@(PkgOption {pkgoptName=pkg})) -> do
+                          cfgwr pkgopt
+                          case () of
+                            () | targetAllowsOLinking (ehcOptTarget opts) -> do
+                                   cpLinkO impModNmL pkg
+%%[[(99 jazy)       
+                               | targetAllowsJarLinking (ehcOptTarget opts) -> do
+                                   cpLinkJar Nothing impModNmL (JarMk_Pkg pkg)
+%%]]       
+                            _ -> return ()
+                        _ -> return ()
+%%]]   
       }
   where splitMain cr = partition (\n -> ecuHasMain $ crCU n cr)
 %%]
@@ -211,20 +221,23 @@ Post processing involves the following:
 2. compile+link everything together
 %%]
 
-%%[(50 codegen grin)
-cpEhcFullProgPostModulePhases, cpEhcGrinFullProgPostModulePhases, cpEhcCoreFullProgPostModulePhases
-  :: EHCOpts -> [HsName] -> ([HsName],HsName) -> EHCompilePhase ()
-
+%%[(50 codegen)
+cpEhcFullProgPostModulePhases :: EHCOpts -> [HsName] -> ([HsName],HsName) -> EHCompilePhase ()
 cpEhcFullProgPostModulePhases opts modNmL modSpl
-  = (if  ehcOptOptimizationScope opts >= OptimizationScope_WholeCore
-    then cpEhcCoreFullProgPostModulePhases
-    else cpEhcGrinFullProgPostModulePhases
-    ) opts modNmL modSpl
+  | ehcOptOptimizationScope opts >= OptimizationScope_WholeCore = cpEhcCoreFullProgPostModulePhases opts modNmL modSpl
+%%[[(50 grin)
+  | otherwise                                                   = cpEhcGrinFullProgPostModulePhases opts modNmL modSpl
+%%][50
+  | otherwise                                                   = return ()
+%%]]
+%%]
 
+%%[(50 codegen grin)
+cpEhcGrinFullProgPostModulePhases :: EHCOpts -> [HsName] -> ([HsName],HsName) -> EHCompilePhase ()
 cpEhcGrinFullProgPostModulePhases opts modNmL (impModNmL,mainModNm)
   = cpSeq ([ cpSeq [cpEnsureGrin m | m <- modNmL]
            , mergeIntoOneBigGrin
-%%[[99
+%%[[(99 grin)
            , cpCleanupGrin impModNmL -- clean up unused Grin (moved here from cpCleanupCU)
 %%]]
            ]
@@ -248,7 +261,10 @@ cpEnsureGrin nm
        ; when (isNothing $ ecuMbGrin $ crCU nm cr)
          $ do { cpGetPrevCore nm ; cpProcessCoreFold nm ; cpProcessCoreRest nm }
        }
+%%]
 
+%%[(50 codegen)
+cpEhcCoreFullProgPostModulePhases :: EHCOpts -> [HsName] -> ([HsName],HsName) -> EHCompilePhase ()
 cpEhcCoreFullProgPostModulePhases opts modNmL (impModNmL,mainModNm)
   = cpSeq ([ cpSeq [cpGetPrevCore m | m <- modNmL]
            , mergeIntoOneBigCore
@@ -256,7 +272,7 @@ cpEhcCoreFullProgPostModulePhases opts modNmL (impModNmL,mainModNm)
            , cpFlowHILamMp mainModNm
            , cpProcessCoreFold mainModNm -- redo folding for replaced main module
            ]
-           -- ++ (if ehcOptDumpCoreStages opts then [void $ cpOutputCore False "" "full.core" mainModNm] else [])
+           -- ++ (if ehcOptDumpCoreStages opts then [void $ cpOutputCore CPOutputCoreHow_Text "" "full.core" mainModNm] else [])
            ++ [ cpMsg mainModNm VerboseDebug ("Full Core generated, from: " ++ show impModNmL)
               ]
           )
@@ -264,7 +280,7 @@ cpEhcCoreFullProgPostModulePhases opts modNmL (impModNmL,mainModNm)
           = do { cr <- get
                ; cpUpdCU mainModNm 
                  $ ecuStoreCore 
-                 $ cModMerge2 ([ mOf m cr | m <- impModNmL ], mOf mainModNm cr)
+                 $ CMerge.cModMerge (mOf mainModNm cr, [ mOf m cr | m <- impModNmL ])
 %%[[99
                ; cpCleanupCore impModNmL -- clean up Core and CoreSem (it can still be read through cr in the next statement)
 %%]]
@@ -330,9 +346,12 @@ cpEhcFullProgModuleCompile1 modNm
        ; cpEhcFullProgModuleDetermineNeedsCompile modNm
        ; cr <- get
        ; let (ecu,_,_,_) = crBaseInfo modNm cr
-             targ = if ecuNeedsCompile ecu then HSAllSem else HIAllSem
+             targ = ecuFinalDestinationState ecu -- ECUS_Haskell $ if ecuNeedsCompile ecu then HSAllSem else HIAllSem
        ; cpEhcModuleCompile1 (Just targ) modNm
-       ; return ()
+       ; cr <- get
+       ; let (ecu,_,_,_) = crBaseInfo modNm cr
+       -- ; return ()
+       ; when (ecuHasMain ecu) (crSetAndCheckMain modNm)
        }
 %%]
 
@@ -347,7 +366,7 @@ cpEhcFullProgBetweenModuleFlow modNm
        ; case ecuState $ crCU modNm cr of
            ECUS_Haskell HSAllSem -> return ()
            ECUS_Haskell HIAllSem -> cpFlowHISem modNm
-           _                    -> return ()
+           _                     -> return ()
 %%[[99
        ; cpCleanupFlow modNm
 %%]]
@@ -363,7 +382,7 @@ cpEhcModuleCompile1 :: HsName -> EHCompilePhase ()
 cpEhcModuleCompile1 modNm
 %%]
 %%[50 -8.cpEhcModuleCompile1.sig export(cpEhcModuleCompile1)
-cpEhcModuleCompile1 :: Maybe HSState -> HsName -> EHCompilePhase HsName
+cpEhcModuleCompile1 :: Maybe EHCompileUnitState -> HsName -> EHCompilePhase HsName
 cpEhcModuleCompile1 targHSState modNm
 %%]
 %%[8
@@ -387,7 +406,7 @@ cpEhcModuleCompile1 targHSState modNm
 %%]]
 %%]
 %%[5050
-           (ECUS_Haskell HIStart,Just HMOnlyMinimal)
+           (ECUS_Haskell HIStart,Just (ECUS_Haskell HMOnlyMinimal))
              -- |    st == HIStart
              -> do { cpMsg modNm VerboseNormal ("Minimal of HM")
                    ; cpUpdCU modNm (ecuStoreState (ECUS_Haskell HMOnlyMinimal))
@@ -395,7 +414,7 @@ cpEhcModuleCompile1 targHSState modNm
                    }
 %%]
 %%[50
-           (ECUS_Haskell st,Just HSOnlyImports)
+           (ECUS_Haskell st,Just (ECUS_Haskell HSOnlyImports))
              |    st == HSStart
 %%[[99
                || st == LHSStart
@@ -418,7 +437,7 @@ cpEhcModuleCompile1 targHSState modNm
                    ; return modNm2
                    }
              where stnext = hsstateNext st
-           (ECUS_Haskell HIStart,Just HSOnlyImports)
+           (ECUS_Haskell HIStart,Just (ECUS_Haskell HSOnlyImports))
              -> do { cpMsg modNm VerboseNormal ("Imports of HI")
                    ; cpEhcHaskellModulePrepareHI modNm
                    ; cpUpdCU modNm (ecuStoreState (ECUS_Haskell (hsstateNext HIStart)))
@@ -429,14 +448,14 @@ cpEhcModuleCompile1 targHSState modNm
                               })
                    ; return defaultResult
                    }
-           (ECUS_Haskell st,Just HSOnlyImports)
+           (ECUS_Haskell st,Just (ECUS_Haskell HSOnlyImports))
              |    st == HSOnlyImports
                || st == HIOnlyImports
 %%[[99
                || st == LHSOnlyImports
 %%]]
              -> return defaultResult
-           (ECUS_Haskell st,Just HSAllSem)
+           (ECUS_Haskell st,Just (ECUS_Haskell HSAllSem))
              |    st == HSOnlyImports
 %%[[99
                || st == LHSOnlyImports
@@ -450,7 +469,7 @@ cpEhcModuleCompile1 targHSState modNm
                    ; cpUpdCU modNm (ecuStoreState (ECUS_Haskell HSAllSem))
                    ; return defaultResult
                    }
-           (ECUS_Haskell st,Just HIAllSem)
+           (ECUS_Haskell st,Just (ECUS_Haskell HIAllSem))
              |    st == HSOnlyImports
                || st == HIOnlyImports
 %%[[99
@@ -486,7 +505,7 @@ cpEhcModuleCompile1 targHSState modNm
                    ; return defaultResult
                    }
 %%[[50
-           (ECUS_Haskell st,Just HMOnlyMinimal)
+           (ECUS_Haskell st,Just (ECUS_Haskell HMOnlyMinimal))
              |    st == HIStart || st == HSStart -- st /= HMOnlyMinimal
              -> do { let mod = emptyMod' modNm
                    ; cpUpdCU modNm (ecuStoreMod mod)
@@ -498,25 +517,30 @@ cpEhcModuleCompile1 targHSState modNm
                    ; return defaultResult
                    }
 %%[[(50 corein)
-           (ECUS_Core CRStart,Just HSOnlyImports)
-             -> do { cpMsg modNm VerboseNormal "Reading Core"
+           (ECUS_Core cst, Just (ECUS_Haskell HSOnlyImports))
+             | cst == CRStartText || isBinary
+             -> do { cpMsg modNm VerboseNormal $ "Reading Core (" ++ (if isBinary then "binary" else "textual") ++ ")"
                    -- 20140605 AD, code below is temporary, to cater for minimal and working infrastructure first...
                    ; cpEhcHaskellModulePrepareSrc modNm
-                   ; modNm2 <- cpEhcCoreImport modNm
+                   ; modNm2 <- cpEhcCoreImport isBinary modNm
                    ; cpGetDummyCheckSrcMod modNm2		-- really dummy, should be based on actual import info to be extracted by cpEhcCoreImport
                    ; cpUpdCU modNm2 (ecuStoreState (ECUS_Core CROnlyImports))
                    ; return modNm2
                    }
-           (ECUS_Core CROnlyImports,_)
+             where isBinary = cst == CRStartBinary
+           (ECUS_Core CROnlyImports,Just (ECUS_Core CRAllSem))
              -> do { cpMsg modNm VerboseMinimal "Compiling Core"
                    -- 20140605 AD, code below is temporary, to cater for minimal and working infrastructure first...
+                   ; cpEhcCoreModuleAfterImport (ecuIsTopMod ecu) opts modNm
+{-
                    ; cpProcessCoreModFold modNm
                    ; cpEhcCoreModuleCommonPhases True True True {- isMainMod isTopMod doMkExec -} opts modNm
+-}
                    ; cpUpdCU modNm (ecuStoreState (ECUS_Core CRAllSem))
                    ; return defaultResult
                    }
 %%]]
-           (_,Just HSOnlyImports)
+           (_,Just (ECUS_Haskell HSOnlyImports))
              -> return defaultResult
 %%]]
            (ECUS_Eh EHStart,_)
@@ -608,11 +632,9 @@ cpEhcEhModuleCommonPhases isMainMod isTopMod doMkExec opts modNm
           ]
 %%]
 
-%%[8 haddock
-HS common phases: HS analysis + EH common
-%%]
-
 %%[8
+-- | Common phases when starting with a Haskell module.
+-- HS common phases: HS analysis + EH common
 cpEhcHaskellModuleCommonPhases :: Bool -> Bool -> EHCOpts -> HsName -> EHCompilePhase ()
 cpEhcHaskellModuleCommonPhases isTopMod doMkExec opts modNm
   = cpSeq [ cpEhcHaskellAnalyseModuleDefs modNm
@@ -629,11 +651,9 @@ cpEhcHaskellModuleCommonPhases isTopMod doMkExec opts modNm
           ]       
 %%]
 
-%%[50 haddock
-Post module import common phases: Parse + Module analysis + HS common
-%%]
-
 %%[50
+-- | All the work to be done after Haskell src imports have been read/analysed.
+-- Post module import common phases: Parse + Module analysis + HS common
 cpEhcHaskellModuleAfterImport
   :: Bool -> EHCOpts -> HSState
 %%[[99
@@ -655,6 +675,28 @@ cpEhcHaskellModuleAfterImport
           , cpEhcHaskellModuleCommonPhases isTopMod False opts modNm
           , cpEhcHaskellModulePostlude modNm
           ]       
+%%]
+
+%%[(50 corein)
+-- | All the work to be done after Core src/binary imports have been read/analysed
+cpEhcCoreModuleAfterImport
+  :: Bool -> EHCOpts
+     -> HsName -> EHCompilePhase ()
+cpEhcCoreModuleAfterImport
+     isTopMod opts
+     modNm
+  = do { cr <- get
+       ; let (ecu,_,_,_) = crBaseInfo modNm cr
+       ; cpSeq
+          [ cpEhcCoreAnalyseModuleItf modNm
+          , cpProcessCoreModFold modNm
+          , cpEhcCoreModuleCommonPhases (ecuIsMainMod ecu) isTopMod False opts modNm
+{-
+          , cpEhcHaskellModuleCommonPhases isTopMod False opts modNm
+          , cpEhcHaskellModulePostlude modNm
+-}
+          ]  
+       }
 %%]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -685,7 +727,13 @@ cpEhcHaskellModulePrepareSrc modNm
 
 cpEhcHaskellModulePrepareHS2 :: HsName -> EHCompilePhase ()
 cpEhcHaskellModulePrepareHS2 modNm
-  = cpSeq [ cpGetMetaInfo [GetMeta_Src, GetMeta_HI, GetMeta_Core, GetMeta_Grin, GetMeta_Dir] modNm
+  = cpSeq [ cpGetMetaInfo
+              [ GetMeta_Src, GetMeta_HI, GetMeta_Core
+%%[[(50 grin)
+              , GetMeta_Grin
+%%]]
+              , GetMeta_Dir
+              ] modNm
           , cpGetPrevHI modNm
           -- , cpFoldHI modNm
           , cpFoldHIInfo modNm
@@ -693,7 +741,12 @@ cpEhcHaskellModulePrepareHS2 modNm
 
 cpEhcHaskellModulePrepareHI :: HsName -> EHCompilePhase ()
 cpEhcHaskellModulePrepareHI modNm
-  = cpSeq [ cpGetMetaInfo [GetMeta_HI, GetMeta_Core, GetMeta_Grin] modNm
+  = cpSeq [ cpGetMetaInfo
+              [ GetMeta_HI, GetMeta_Core
+%%[[(50 grin)
+              , GetMeta_Grin
+%%]]
+              ] modNm
           , cpGetPrevHI modNm
           -- , cpFoldHI modNm
           , cpFoldHIInfo modNm
@@ -840,6 +893,21 @@ cpEhcHaskellAnalyseModuleItf modNm
           ]
 %%]
 
+%%[(50 corein)
+-- | Analyse a Core text/binary src module for
+--     (1) module information (import, export, etc),
+cpEhcCoreAnalyseModuleItf :: HsName -> EHCompilePhase ()
+cpEhcCoreAnalyseModuleItf modNm
+  = cpSeq [ cpCheckMods [modNm]
+%%[[(50 codegen grin)
+          , cpUpdateModOffMp [modNm]
+%%]]
+%%[[99
+          -- , cpCleanupHSMod modNm
+%%]]
+          ]
+%%]
+
 %%[8
 -- | Analyse a Haskell src module for
 --     (2) names + dependencies
@@ -898,13 +966,16 @@ cpEhcCorePerModulePart1 modNm
 %%[(50 codegen corein)
 -- | Get import information from Core module source text.
 cpEhcCoreImport
-  :: HsName -> EHCompilePhase HsName
+  :: Bool -> HsName -> EHCompilePhase HsName
 cpEhcCoreImport
-     modNm
+     isBinary modNm
   = do { cr <- get
        ; let (_,opts) = crBaseInfo' cr
        
-       ; cpParseCoreWithFPath Nothing modNm
+       ; if isBinary
+         then -- cpDecodeCore (Just Cfg.suffixDotlessInputOutputBinaryCore) modNm
+              cpDecodeCore Nothing modNm
+         else cpParseCoreWithFPath Nothing modNm
        ; cpFoldCoreMod modNm
        ; cpGetCoreModnameAndImports modNm
        }
@@ -935,7 +1006,9 @@ cpEhcCorePerModulePart2 modNm
              earlyMerge = ehcOptOptimizationScope opts >= OptimizationScope_WholeCore
 %%]]
        ; cpSeq [ when earlyMerge $ cpProcessCoreRest modNm
+%%[[(8 grin)
                , when (ehcOptIsViaGrin opts) (cpProcessGrin modNm)
+%%]]
                ]
        }
 %%]
@@ -949,10 +1022,10 @@ cpEhcCoreGrinPerModuleDoneNoFullProgAnalysis opts isMainMod isTopMod doMkExec mo
              , cpMsg modNm VerboseDebug "cpFlowOptim"
              , cpFlowOptim modNm
 %%]]
-%%[[99
+%%[[(99 grin)
              , cpCleanupGrin [modNm]
-%%]]
              , cpProcessAfterGrin modNm
+%%]]
              ]
           ++ (if not isMainMod || doMkExec
               then let how = if doMkExec then FinalCompile_Exec else FinalCompile_Module
@@ -1088,8 +1161,8 @@ cpProcessCoreBasic modNm
 %%[[50
                , cpFlowHILamMp modNm
 %%]]
-               -- , when (ehcOptEmitCore opts) (void $ cpOutputCore True "" "core" modNm)
-               , void $ cpOutputCore True [] "" Cfg.suffixDotlessBinaryCore modNm
+               -- , when (ehcOptEmitCore opts) (void $ cpOutputCore CPOutputCoreHow_Binary "" "core" modNm)
+               , void $ cpOutputCore CPOutputCoreHow_Binary [] "" Cfg.suffixDotlessBinaryCore modNm
 %%[[(8888 codegen java)
                , when (ehcOptEmitJava opts) (cpOutputJava         "java" modNm)
 %%]]
@@ -1107,7 +1180,7 @@ cpProcessCoreFold modNm
 %%[[50
 	  [ cpFlowCoreSemBeforeFold modNm ] ++
 %%]]
-      [ cpFoldCore modNm ]
+      [ cpFoldCore2Grin modNm ]
 %%[[50
 	  ++ [ cpFlowCoreSemAfterFold modNm ]
 %%]]
@@ -1128,8 +1201,11 @@ cpProcessCoreRest :: HsName -> EHCompilePhase ()
 cpProcessCoreRest modNm
   = do { cr <- get
        ; let (_,_,opts,_) = crBaseInfo modNm cr
-       ; cpSeq (   [ cpTranslateCore2Grin modNm ]
+       ; cpSeq (   []
+%%[[(8 grin)
+                ++ [ cpTranslateCore2Grin modNm ]
                 ++ (if ehcOptIsViaGrin opts then [void $ cpOutputGrin True "" modNm] else [])
+%%]]
 %%[[(8 jazy)
                 ++ [ cpTranslateCore2Jazy modNm ]
 %%]]
@@ -1138,7 +1214,18 @@ cpProcessCoreRest modNm
 %%]]
 %%[[(8 coreout)
                 ++ (if CoreOpt_Dump `elem` ehcOptCoreOpts opts
-                    then [void $ cpOutputCore False [] "" Cfg.suffixDotlessOutputTextualCore modNm]
+                    then [void $ cpOutputCore CPOutputCoreHow_Text [] "" Cfg.suffixDotlessOutputTextualCore modNm]
+                    else [])
+                ++ (if CoreOpt_DumpBinary `elem` ehcOptCoreOpts opts
+                    then [void $ cpOutputCore CPOutputCoreHow_Binary [] "" Cfg.suffixDotlessInputOutputBinaryCore modNm]
+                    else [])
+%%]]
+%%[[(8 corerun)
+                ++ (if CoreOpt_DumpRun `elem` ehcOptCoreOpts opts
+                    then [void $ cpOutputCore CPOutputCoreHow_Run [] "" Cfg.suffixDotlessInputOutputCoreRun modNm]
+                    else [])
+                ++ (if CoreOpt_Run `elem` ehcOptCoreOpts opts		-- TBD: only when right backend? For now, just do it
+                    then [cpRunCoreRun modNm]
                     else [])
 %%]]
 %%[[99

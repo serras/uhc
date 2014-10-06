@@ -7,7 +7,7 @@
 %%% Core parser
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 corein) module {%{EH}Core.Parser} import({%{EH}Base.Common}, {%{EH}Base.Builtin})
+%%[(8 corein) module {%{EH}Core.Parser} import({%{EH}Base.Common}, {%{EH}Base.HsName.Builtin})
 %%]
 
 %%[(8 corein) import(UHC.Util.ScanUtils, {%{EH}Scanner.Common}, {%{EH}Scanner.Scanner})
@@ -59,13 +59,22 @@ pCTy
 %%[(50 corein) export(pCModule,pCExpr)
 pCModule :: CParser CModule
 pCModule
-  = (\m mt e -> CModule_Mod m mt e) <$ pMODULE <*> pDollNm <*> pM <* pEQUAL <*> pCExpr -- <*> pA (pA pCTag)
+  = (\m mt e -> CModule_Mod m mt e)
+    <$  pMODULE <*> pDollNm <* pSEMI
+    <*> pI
+    <*> pM
+    <*> pCExpr -- <*> pA (pA pCTag)
   where -- pA pE = pOCURLY *> pListSep pSEMI ((,) <$> pDollNm <* pEQUAL <*> pE) <* pCCURLY
-        pM    = pMaybe [] id $ pOCURLY *> pListSep pSEMI pCDeclMeta <* pCCURLY
+        pM    = pList pCDeclMeta -- pMaybe [] id $ pOCURLY *> pListSep pSEMI pCDeclMeta <* pCCURLY
+        pI    = pList pCImport
+
+pCImport :: CParser CImport
+pCImport
+  =   CImport_Import <$ pIMPORT <*> pDollNm <* pSEMI
 
 pCDeclMeta :: CParser CDeclMeta
 pCDeclMeta
-  = CDeclMeta_Data <$ pDATA <*> pDollNm <* pEQUAL <* pOCURLY <*> pListSep pCOMMA pCDataCon <* pCCURLY
+  =   CDeclMeta_Data <$ pDATA <*> pDollNm <* pEQUAL <*> pListSep pCOMMA pCDataCon <* pSEMI
 
 pCDataCon :: CParser CDataCon
 pCDataCon = CDataCon_Con <$> pDollNm <* pEQUAL <* pOCURLY <*> pInt <* pCOMMA <*> pInt <* pCCURLY
@@ -138,7 +147,7 @@ pCExpr
 -}
   =   (\f as -> acoreApp f as)
                      <$> pCExprSel <*> pList pCExprSel -- pCExprSelMeta
-  <|> acoreLam       <$  pLAM <*> pList1 (pDollNm) <* pRARROW <*> pCExpr
+  <|> mkLam          <$  pLAM <*> pList1 (pDollNm) <* pRARROW <*> pCExpr
   <|> CExpr_Let      <$  pLET <*> pMaybe CBindCateg_Plain id pCBindCateg <* pOCURLY <*> pListSep pSEMI pCBind <* pCCURLY <* pIN <*> pCExpr
   <|> (\(c,_) s i t -> CExpr_FFI c s (mkImpEnt c i) t)
                      <$  pFOREIGN <* pOCURLY <*> pFFIWay <* pCOMMA <*> pS <* pCOMMA <*> pS <* pCOMMA <*> pTy <* pCCURLY
@@ -152,6 +161,8 @@ pCExpr
           <|> CBindCateg_FFE    <$ pKeyTk "foreignexport"
 %%]]
           <|> CBindCateg_Strict <$ pBANG
+        -- mkLam = acoreLam -- not used to avoid spurious intro of error type info
+        mkLam as e = foldr (\n e -> CExpr_Lam (CBind_Bind n []) e) e as
 %%[[8
         mkImpEnt c e = e
 %%][90
@@ -254,7 +265,11 @@ pCPat
               <|> (CPat_Char . head) <$ pCHAR
               )
               <*> (tokMkStr <$> pStringTk)
-          <|> (\t r fs -> CPat_Con t r $ zipWith (\o (mf,n) -> acorePatFldTy (acoreTyErr "pCPatFld") (maybe (n, CExpr_Int o) id mf) n) [0..] fs)		-- TODO, use refGen instead of baked in 0.. ...
+          -- <|> (\t r fs -> CPat_Con t r $ zipWith (\o (mf,n) -> acorePatFldTy (acoreTyErr "pCPatFld") (maybe (n, CExpr_Int o) id mf) n) [0..] fs)		-- TODO, use refGen instead of baked in 0.. ...
+          <|> 
+              -- TODO, use refGen instead of baked in 0.. ...
+              (\t r fs -> CPat_Con t r $ zipWith (\o (mf,n) -> let (lbl',o') = fromMaybe (n, CExpr_Int o) mf
+                                                                in CPatFld_Fld lbl' o' (CBind_Bind n []) []) [0..] fs)
               <$> pCTagTag
               <*  pOCURLY <*> pCPatRest <*> pListSep pCOMMA pCPatFld <* pCCURLY
           )

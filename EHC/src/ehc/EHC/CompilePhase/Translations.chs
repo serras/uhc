@@ -15,6 +15,8 @@ Translation to another AST
 
 %%[(50 codegen) import({%{EH}Base.Optimize})
 %%]
+%%[(50 codegen) import({%{EH}EHC.CompilePhase.Module})
+%%]
 
 %%[8 import({%{EH}EHC.Common})
 %%]
@@ -38,7 +40,7 @@ Translation to another AST
 %%]
 
 -- Core semantics
-%%[(8 codegen grin) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%[(8 core) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
 %%]
 %%[(8 codegen) import({%{EH}Core.Trf.ElimNonCodegenConstructs})
 %%]
@@ -70,7 +72,7 @@ Translation to another AST
 %%]
 %%[(8 codegen javascript) import({%{EH}Core.ToJavaScript})
 %%]
-%%[(8 codegen java) import({%{EH}Base.Bits},{%{EH}JVMClass.ToBinary})
+%%[(8 codegen java) import({%{EH}CodeGen.Bits},{%{EH}JVMClass.ToBinary})
 %%]
 
 -- Alternative backends
@@ -245,10 +247,9 @@ cpGenGrinGenInfo
        )
 cpGenGrinGenInfo modNm
   = do { cr <- get
+       ; impNmL <- cpGenImpNmInfo modNm
        ; let (ecu,crsi,opts,fp) = crBaseInfo modNm cr
-             isWholeProg = ehcOptOptimizationScope opts >= OptimizationScope_WholeGrin
-             impNmL     | isWholeProg = []
-                        | otherwise   = ecuImpNmL ecu
+             isWholeProg = ehcOptOptimizationScope opts > OptimizationScope_PerModule
              expNmFldMp | ecuIsMainMod ecu = Map.empty
                         | otherwise        = crsiExpNmOffMp modNm crsi
              modOffMp   | isWholeProg = Map.filterWithKey (\n _ -> n == modNm) $ crsiModOffMp crsi

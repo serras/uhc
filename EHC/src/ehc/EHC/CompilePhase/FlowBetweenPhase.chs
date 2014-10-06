@@ -24,7 +24,7 @@ XXX
 %%]
 
 -- module related
-%%[50 import({%{EH}Module})
+%%[50 import({%{EH}Module.ImportExport}, {%{EH}EHC.CompilePhase.Module})
 %%]
 %%[(92 codegen) import({%{EH}EHC.CompilePhase.Module(cpUpdHiddenExports)})
 %%]
@@ -38,7 +38,9 @@ XXX
 %%]
 
 -- Core semantics
-%%[(8 codegen grin) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%[(8 core) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%]
+%%[(50 codegen) import({%{EH}Core})
 %%]
 %%[(50 codegen) import({%{EH}Core.UsedModNms})
 %%]
@@ -359,8 +361,13 @@ cpFlowCoreSemBeforeFold modNm
                           . ecuStoreHIUsedImpS usedImpS
                           . ecuStoreIntrodModS introdModS
                           )
+         ;  impNmL <- cpGenImpNmInfo modNm
+         ;  cpUpdCU modNm ( ecuStoreCore $ cmodSetImports impNmL core
+                          )
          }
 %%]
+
+cmodSetImports
 
 %%[(50 codegen) export(cpFlowHILamMp)
 cpFlowHILamMp :: HsName -> EHCompilePhase ()

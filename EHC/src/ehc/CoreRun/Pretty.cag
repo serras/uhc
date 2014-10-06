@@ -1,0 +1,128 @@
+%%[0
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%[doesWhat doclatex
+Pretty printing for CoreRun
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% CoreRun Pretty Printer
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 corerun) hs module {%{EH}CoreRun.Pretty} import(UHC.Util.Pretty,{%{EH}Base.Common},{%{EH}Base.Target},{%{EH}Ty},{%{EH}Foreign},{%{EH}CoreRun})
+%%]
+%%[(8 corerun) hs import({%{EH}Ty.Pretty})
+%%]
+
+%%[(8888 corerun) hs import(Data.Array)
+%%]
+%%[(8 corerun) hs import(qualified Data.Vector as V)
+%%]
+
+%%[(90 corerun) hs import({%{EH}Foreign.Pretty})
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Haskell itf
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 corerun).WRAPPER ag import({CoreRun/AbsSyn})
+WRAPPER
+  Mod
+  Exp
+  Alt
+%%]
+
+%%[(8 corerun) hs
+instance Show Mod where
+  show _ = "Mod"
+
+instance Show Exp where
+  show _ = "Exp"
+
+instance Show SExp where
+  show _ = "SExp"
+
+instance Show Alt where
+  show _ = "Alt"
+%%]
+
+%%[(8 corerun) hs
+instance PP Mod where
+  pp x = pp_Syn_Mod $ wrap_Mod (sem_Mod x) Inh_Mod
+
+instance PP Exp where
+  pp x = pp_Syn_Exp $ wrap_Exp (sem_Exp x) Inh_Exp
+
+instance PP SExp where
+  pp = pp . Exp_SExp
+
+instance PP Alt where
+  pp x = pp_Syn_Alt $ wrap_Alt (sem_Alt x) Inh_Alt
+%%]
+
+%%[(8 corerun) hs
+instance PP RRef where
+  pp (RRef_Glb m e) = "#g" >|< ppDots [m,e]
+  pp (RRef_Loc l e) = "#l" >|< ppDots [l,e]
+  pp (RRef_Tag r  ) = ppDots [pp r, pp "tg"]
+  pp (RRef_Fld r e) = ppDots [pp r, pp e]
+  pp (RRef_Dbg n  ) = "##" >|< n
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Pretty printed code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(8 corerun) hs
+ppBinds' :: Int -> CRArray Bind -> PP_Doc
+ppBinds' off bs = vlist [ off+i >|< ":" >#< e | (i,e) <- craAssocs bs ]
+
+ppBinds :: CRArray Bind -> PP_Doc
+ppBinds = ppBinds' 0
+%%]
+
+%%[(8 corerun)
+ATTR AllNT [ | | pp USE {>-<} {empty} : PP_Doc ]
+
+SEM Mod
+  | Mod         lhs         .   pp          =   "module" >#< @moduleNm >|< ":" >#< @body.pp
+                                                >-< vlist [ i >|< ":" >#< e | (i,e) <- craAssocs @binds ]
+
+SEM SExp
+  | Int         lhs         .   pp          =   pp @int
+  | Char        lhs         .   pp          =   pp $ show @char
+  | String      lhs         .   pp          =   pp $ show @str
+%%[[97
+  | Integer     lhs         .   pp          =   pp @integer
+%%]
+  | Var         lhs         .   pp          =   pp @ref
+
+SEM Exp
+  | App         lhs         .   pp          =   "app" >#< ppParens @func.pp >|< ppParensCommas (V.toList @args)
+  -- | PApp        lhs         .   pp          =   "papp" >#< ppParens @func.pp >|< ppParensCommas (V.toList @args)
+  | LetRec      lhs         .   pp          =   "letrec" >#< ppBinds' @firstOff @binds >#< "in" >-< @body.pp
+  | LetStr      lhs         .   pp          =   "letstr" >#< ppBinds' @firstOff @binds >#< "in" >-< @body.pp
+  | Force       lhs         .   pp          =   "eval" >|< ppParens @expr.pp
+  -- | Thunk       lhs         .   pp          =   "thunk" >|< ppParens @expr.pp
+  | Lam         lhs         .   pp          =   "\\" >|< "@" >|< @lev >#< (if @nrArgs > 0 then pp @nrArgs else pp "thk") >|< "," >|< @nrAllocs >#< "->" >#< @body.pp
+  | Case        lhs         .   pp          =   "case" >#< @expr.pp >#< "of"
+                                                >-< indent 1 (vlist $ V.toList @alts)
+  | Tup         lhs         .   pp          =   "alloc" >#< ctagTag @tag >|< ppParensCommas (V.toList @args)
+  | FFI         lhs         .   pp          =   "ffi" >#< ppParens (show @callconv >#< @ppent >|< "::" >#< @ty) >|< ppParensCommas (V.toList @args)
+%%[[8
+                loc         .   ppent       =   pp (show @impEnt)
+%%][90
+                loc         .   ppent       =   "\"" >|< @impEnt >|< "\""
+%%]]
+  | Dbg         lhs         .   pp          =   ppCurly $ "dbg:" >#< @msg
+
+SEM Alt
+  | Alt         lhs         .   pp          =   @pat.pp >#< "->" >#< @expr.pp
+
+SEM Pat
+  | Con         lhs         .   pp          =   pp $ ctagTag @tag
+%%]
+

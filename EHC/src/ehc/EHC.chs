@@ -12,6 +12,8 @@
 
 %%[1 import(System.Console.GetOpt, System.IO, System.Exit, System.Process, System.Environment)
 %%]
+%%[99 import(System.Directory)
+%%]
 %%[1.fastseq import(qualified UHC.Util.FastSeq as Seq)
 %%]
 %%[1 import(qualified {%{EH}Config} as Cfg)
@@ -63,7 +65,7 @@
 %%]
 
 -- module
-%%[50 import({%{EH}Module}(modBuiltin), {%{EH}Module})
+%%[50 import({%{EH}Module.ImportExport}(modBuiltin), {%{EH}Module.ImportExport})
 %%]
 
 -- packages
@@ -85,11 +87,15 @@ main :: IO ()
 main
   =  do  {  args      <- getArgs
          ;  progName  <- getProgName
+%%[[99
+         ;  curDir  <- getCurrentDirectory
+%%]]
          ;  let  opts1          = defaultEHCOpts
 %%[[8
                                     { ehcOptEnvironment     = defaultEHCEnvironment
 %%[[99
                                     , ehcProgName           = p
+                                    , ehcCurDir             = curDir
 %%]]
                                     }
 %%]]
@@ -117,8 +123,8 @@ main
          ;  let opts3 = opts2 { ehcOptUserDir = userDir
                               , ehcOptOutputDir =
                                   let outputDir = maybe "." id (ehcOptOutputDir opts2)
-                                  in  case ehcOptPkg opts2 of
-                                        Just (PkgOption_Build s)
+                                  in  case ehcOptPkgOpt opts2 of
+                                        Just (PkgOption {pkgoptName=s})
                                           -> case parsePkgKey s of
                                                Just k  -> Just $
                                                           outputDir ++ "/" ++
@@ -262,7 +268,11 @@ mkFileSuffMpHs opts
     -- , ( Just "grin", ECUS_Grin )
 %%]]
 %%[[(50 corein)
-    , ( Just Cfg.suffixDotlessInputTextualCore, ECUS_Core CRStart )
+    , ( Just Cfg.suffixDotlessInputOutputTextualCore, ECUS_Core CRStartText   )
+    , ( Just Cfg.suffixDotlessInputOutputBinaryCore , ECUS_Core CRStartBinary )
+%%]]
+%%[[(50 corebackend)
+    , ( Just Cfg.suffixDotlessBinaryCore , ECUS_Core CRStartBinary )
 %%]]
     ]
 %%[[(90 codegen)
@@ -382,7 +392,7 @@ doCompilePrepare fnL@(fn:_) opts
                         ]
                     )
        ; let (pkgDb2,pkgErrs) = pkgDbSelectBySearchFilter (pkgSearchFilter Just PackageSearchFilter_ExposePkg (map tup123to1 $ pkgExposedPackages pkgDb1)
-                                                           ++ ehcOptPackageSearchFilter opts
+                                                           ++ sort (ehcOptPackageSearchFilter opts)
                                                           ) pkgDb1
              pkgDb3 = pkgDbFreeze pkgDb2
        -- ; putStrLn $ "db1 " ++ show pkgDb1
@@ -496,7 +506,7 @@ doCompileRun fnL@(fn:_) opts
                ; return ()
                }
           where toplayer fpL topModNmL
-                  = zipWithM (\fp topModNm -> imp1 opts fileSuffMpHs searchPath HSOnlyImports (Just fp) Nothing topModNm) fpL topModNmL
+                  = zipWithM (\fp topModNm -> imp1 opts fileSuffMpHs searchPath (ECUS_Haskell HSOnlyImports) (Just fp) Nothing topModNm) fpL topModNmL
                 onelayer
                   = do { cr <- get
                        ; let modNmS = Map.keysSet $ crCUCache cr
@@ -508,7 +518,7 @@ doCompileRun fnL@(fn:_) opts
                                     ]
                                   `Set.difference` modNmS
                        ; sequence -- or: cpSeq + return ()
-                           [ do { i@(m',_) <- imp1 opts fileSuffMpHs searchPath HSOnlyImports Nothing Nothing m
+                           [ do { i@(m',_) <- imp1 opts fileSuffMpHs searchPath (ECUS_Haskell HSOnlyImports) Nothing Nothing m
                                 -- ; cpEhcFullProgModuleDetermineNeedsCompile m'
                                 ; return i
                                 }
@@ -531,7 +541,7 @@ doCompileRun fnL@(fn:_) opts
                  cpCheckMods' (const emptyModMpInfo) [modBuiltin]
                
                -- start with directly importing top modules, providing the filepath directly
-               ; topModNmL' <- zipWithM (\fp topModNm -> imp HSOnlyImports (Just fp) Nothing topModNm) fpL topModNmL
+               ; topModNmL' <- zipWithM (\fp topModNm -> imp (ECUS_Haskell HSOnlyImports) (Just fp) Nothing topModNm) fpL topModNmL
                
                -- follow the import relation to chase modules which have to be analysed
                ; cpImportGatherFromModsWithImp
@@ -542,16 +552,16 @@ doCompileRun fnL@(fn:_) opts
                                    _ -> ecuImpNmL ecu
                     else ecuImpNmL
                    )
-                   (imp HSOnlyImports Nothing) (map fst topModNmL')
+                   (imp (ECUS_Haskell HSOnlyImports) Nothing) (map fst topModNmL')
                
                -- import orphans
                ; when (ehcOptPriv opts)
                       (do { 
                           -- import orphans
-                            importAlso HSOnlyImports ecuTransClosedOrphanModS
+                            importAlso (ECUS_Haskell HSOnlyImports) ecuTransClosedOrphanModS
                           
                           -- import used remaining modules, but just minimally                          
-                          ; importAlso HMOnlyMinimal (Set.unions . Map.elems . ecuTransClosedUsedModMp)
+                          ; importAlso (ECUS_Haskell HMOnlyMinimal) (Set.unions . Map.elems . ecuTransClosedUsedModMp)
                           })
 
                -- inhibit mutual recursiveness
@@ -568,7 +578,7 @@ doCompileRun fnL@(fn:_) opts
                 imp = imp1 opts fileSuffMpHs searchPath
                 
                 -- import others, but then in a (slightly) different way
-                importAlso :: HSState -> (EHCompileUnit -> Set.Set HsName) -> EHCompilePhase ()
+                importAlso :: EHCompileUnitState -> (EHCompileUnit -> Set.Set HsName) -> EHCompilePhase ()
                 importAlso how getNms
                   = do { cr <- get
                        ; let allAnalysedModS = Map.keysSet $ crCUCache cr
@@ -578,7 +588,7 @@ doCompileRun fnL@(fn:_) opts
                            (imp how Nothing) (Set.toList allNewS)
                        }
 
-        imp1 :: EHCOpts -> FileSuffMp -> FileLocPath -> HSState -> Maybe FPath -> Maybe (HsName,(FPath,FileLoc)) -> HsName -> EHCompilePhase (HsName,Maybe (HsName,(FPath,FileLoc)))
+        imp1 :: EHCOpts -> FileSuffMp -> FileLocPath -> EHCompileUnitState -> Maybe FPath -> Maybe (HsName,(FPath,FileLoc)) -> HsName -> EHCompilePhase (HsName,Maybe (HsName,(FPath,FileLoc)))
         imp1 opts fileSuffMpHs searchPath desiredState mbFp mbPrev nm
           = do { let isTopModule = isJust mbFp
                      fileSuffMpHs' = (if isTopModule then fileSuffMpHsNoSuff else []) ++ fileSuffMpHs

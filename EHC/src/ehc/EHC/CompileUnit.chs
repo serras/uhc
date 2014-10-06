@@ -33,7 +33,7 @@ An EHC compile unit maintains info for one unit of compilation, a Haskell (HS) m
 %%[8 import(qualified {%{EH}EH.MainAG} as EHSem, qualified {%{EH}HS.MainAG} as HSSem)
 %%]
 -- Language semantics: Core
-%%[(8 codegen grin) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
+%%[(8 core) import(qualified {%{EH}Core.ToGrin} as Core2GrSem)
 %%]
 %%[(8 codegen corein) import(qualified {%{EH}Core.Check} as Core2ChkSem)
 %%]
@@ -44,7 +44,7 @@ An EHC compile unit maintains info for one unit of compilation, a Haskell (HS) m
 %%[50 import(qualified {%{EH}HS.ModImpExp} as HSSemMod)
 %%]
 -- module admin
-%%[50 import({%{EH}Module}, {%{EH}CodeGen.ImportUsedModules})
+%%[50 import({%{EH}Module.ImportExport}, {%{EH}CodeGen.ImportUsedModules})
 %%]
 
 -- timestamps
@@ -149,6 +149,8 @@ data EHCompileUnit
       , ecuMbEHSem           :: !(Maybe EHSem.Syn_AGItf)
 %%[[(8 codegen)
       , ecuMbCore            :: !(Maybe Core.CModule)
+%%]]
+%%[[(8 codegen core)
       , ecuMbCoreSem         :: !(Maybe Core2GrSem.Syn_CodeAGItf)
 %%]]
 %%[[(8 codegen corein)
@@ -256,6 +258,8 @@ emptyECU
 %%]]
 %%[[(8 codegen)
       , ecuMbCore            = Nothing
+%%]]
+%%[[(8 codegen core)
       , ecuMbCoreSem         = Nothing
 %%]]
 %%[[(8 codegen corein)
@@ -371,7 +375,10 @@ instance CompileUnitState EHCompileUnitState where
 %%]]
                       ECUS_Haskell HSAllSem       -> True
                       ECUS_Haskell HIAllSem       -> True
-                      _                          -> False
+%%[[(50 corein)
+                      ECUS_Core    CROnlyImports  -> True
+%%]]
+                      _                           -> False
 %%]
 
 %%[8
@@ -426,6 +433,16 @@ instance PP EHCompileUnit where
       "," >#< show (ecuState ecu)
 %%]
 
+%%[8 export(ecuFinalDestinationState)
+-- | The final state to be reached
+ecuFinalDestinationState :: EHCompileUnit -> EHCompileUnitState
+ecuFinalDestinationState ecu = ecuStateFinalDestination upd $ ecuState ecu
+  where upd (ECUS_Haskell _)
+          | ecuNeedsCompile ecu = ECUS_Haskell HSAllSem
+          | otherwise           = ECUS_Haskell HIAllSem
+        upd s                   = s
+%%]
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Storing into an EHCompileUnit
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -460,10 +477,12 @@ ecuStoreCoreSemMod :: EcuUpdater Core2ChkSem.Syn_CodeAGItf
 ecuStoreCoreSemMod x ecu = ecu { ecuMbCoreSemMod = Just x }
 %%]
 
-%%[(8 codegen) export(ecuStoreCoreSem,ecuStoreCore)
+%%[(8 codegen core) export(ecuStoreCoreSem)
 ecuStoreCoreSem :: EcuUpdater Core2GrSem.Syn_CodeAGItf
 ecuStoreCoreSem x ecu = ecu { ecuMbCoreSem = Just x }
+%%]
 
+%%[(8 codegen) export(ecuStoreCore)
 ecuStoreCore :: EcuUpdater Core.CModule
 %%[[8
 ecuStoreCore x ecu = ecu { ecuMbCore = Just x }

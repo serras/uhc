@@ -11,7 +11,7 @@ Note (20120525): lamMp use removed because of cyclic module import
 %%% Core Pretty Printer
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%[(8 coreout) hs module {%{EH}Core.Pretty} import(UHC.Util.Pretty,{%{EH}Base.Builtin},{%{EH}Base.CfgPP},{%{EH}Opts.Base},{%{EH}Base.Common},{%{EH}Ty},{%{EH}Core},{%{EH}Scanner.Common(coreScanOpts)})
+%%[(8 coreout) hs module {%{EH}Core.Pretty} import(UHC.Util.Pretty,{%{EH}Base.HsName.Builtin},{%{EH}Base.CfgPP},{%{EH}Opts.Base},{%{EH}Base.Common},{%{EH}Ty},{%{EH}Core},{%{EH}Scanner.Common(coreScanOpts)})
 %%]
 %%[(8 coreout) hs import({%{EH}Ty.Pretty})
 %%]
@@ -26,6 +26,10 @@ Note (20120525): lamMp use removed because of cyclic module import
 
 %%[(90 coreout) hs import({%{EH}Foreign.Pretty})
 %%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Haskell itf
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%[(8 coreout).WRAPPER ag import({Core/AbsSyn},{Core/CommonBindNm},{Core/CommonMetaLev})
 WRAPPER
@@ -128,6 +132,9 @@ ppTrack t = text (show t)
 
 ppHole :: UID -> PP_Doc
 ppHole i = "<" >|< pp i >|< ">"
+
+ppSemi :: PP x => x -> PP_Doc
+ppSemi = (>|< ";")
 %%]
 
 %%[(9 coreout) hs
@@ -298,20 +305,25 @@ ppBound opts isSingleNoNm mbLev s pv
 
 %%[(8 coreout)
 ATTR CodeAGItf AllNT [ | | pp USE {>-<} {empty} : PP_Doc ]
-ATTR CPatFldL CBindL CAltL CBoundL CBindAnnL CDataConL CDeclMetaL [ | | ppL: {[PP_Doc]} ]
+ATTR CPatFldL CBindL CAltL CBoundL CBindAnnL CDataConL CDeclMetaL CImportL [ | | ppL: {[PP_Doc]} ]
 ATTR CExpr [ | | lamBodyPP: PP_Doc  lamArgPPL: {[PP_Doc]} ]
 ATTR CExpr [ | | appFunPP : PP_Doc  appArgPPL: {[PP_Doc]} ]
 
 SEM CModule
-  | Mod         lhs         .   pp          =   "module" >#< ppCNm @moduleNm
-                                                >-< (if null @declMetas.ppL then empty else ppCurlysSemisBlock @declMetas.ppL)
-                                                >-< "="
+  | Mod         lhs         .   pp          =   ppSemi ("module" >#< ppCNm @moduleNm)
+                                                >-< (vlist $ map ppSemi @imports.ppL)
+                                                >-< (vlist $ map ppSemi @declMetas.ppL)
+                                                -- >-< (if null @declMetas.ppL then empty else ppCurlysSemisBlock @declMetas.ppL)
+                                                -- >-< "="
                                                 >-< @expr.pp
                                                 -- >-< "-- data type tag map:"
                                                 -- >-< ppCTagsMp CfgPP_Core @ctagsMp
 
 SEM CDeclMeta
-  | Data		lhs			.	pp			=	howDef @lhs.ppHow ("data" >#< ppCNm @tyNm) ("=" >#< ppCurlysCommasBlock @dataCons.ppL)
+  | Data		lhs			.	pp			=	howDef @lhs.ppHow ("data" >#< ppCNm @tyNm) ("=" >#< ppBlockWithStrings{-H-} "" "" ", " @dataCons.ppL)
+
+SEM CImport
+  | Import		lhs			.	pp			=	"import" >#< ppCNm @nm
 
 SEM CDataCon
   | Con			lhs			.	pp			=	ppCNm @conNm >#< "=" >#< ppCurlysCommas [pp @tagNr, pp @arity]
@@ -324,6 +336,9 @@ SEM CExpr
   | Integer     loc         .   pp          =   ppLit "Integer" (show @integer)
 %%]
   | Var         loc         .   pp          =   ppACoreBindRef ppCNm @ref
+%%[[(8888 corerun)
+  | VarRRef		loc         .   pp          =   pp @ref
+%%]]
   | App         loc         .   pp          =   let args = reverse $ map ppParens $ @appArgPPL
                                                     fun  = ppParens @appFunPP
                                                 in  howDef @lhs.ppHow fun (foldr1 (howAside @lhs.ppHow) args)
@@ -350,7 +365,7 @@ SEM CExpr
 %%][90
                 loc         .   ppent       =   "\"" >|< @impEnt >|< "\""
 %%]]
-  | Dbg         loc         .   pp          =   ppParens $ "<<DBG:" >#< @info >#< ">>"
+  | Dbg         loc         .   pp          =   {- whenMore @lhs.opts $ -} ppParens $ "<<DBG:" >#< @info >#< ">>"
 %%[[(8 coresysf)
   | Arr         loc         .   pp          =   @bind.pp >#< "->" >#< @body.pp
   | Cast		loc			.	pp			=	howDef @lhs.ppHow (pp "cast") (howAside @lhs.ppHow (ppParens @expr.pp) (ppParens @ty.pp))
@@ -403,7 +418,7 @@ SEM CBound
   | Val         loc         .   pp          =   ppBound @lhs.opts True (Just @lev) @sep @ppBound
   | * - Val     loc         .   pp          =   @ppBound
 
-SEM CBoundL CBindL CPatFldL CAltL CBindAnnL CDataConL CDeclMetaL
+SEM CBoundL CBindL CPatFldL CAltL CBindAnnL CDataConL CDeclMetaL CImportL
   | Nil         lhs         .   ppL         =   []
   | Cons        lhs         .   ppL         =   @hd.pp : @tl.ppL
 
