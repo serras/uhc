@@ -146,3 +146,8 @@ ENABLE_TYCORE				:= yes
 ENABLE_TAUPHI				:= yes
 endif
 
+# include type inference using constraint solving
+ifeq (@ENABLE_CONSTRAINT@,yes)
+ENABLE_CONSTRAINT			:= yes
+endif
+

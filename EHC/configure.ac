@@ -185,6 +185,10 @@ AC_SUBST(ENABLE_CORESYSF,$enableCoreSysF)
 AC_ARG_ENABLE(tauphi, AS_HELP_STRING([--enable-tauphi],[include TauPhi language extension and analyses]), [enableTauPhi=yes], [enableTauPhi=no])
 AC_SUBST(ENABLE_TAUPHI,$enableTauPhi)
 
+### enable options: constraint (type checking using constraint solving), default is no
+AC_ARG_ENABLE(constraint, AS_HELP_STRING([--enable-constraint],[include type checking via constraint solving]), [enableConstraint=yes], [enableConstraint=no])
+AC_SUBST(ENABLE_CONSTRAINT,$enableConstraint)
+
 ### cpp
 AC_ARG_WITH(cpp,
 [AS_HELP_STRING([--with-cpp=<cpp preprocessor>],[Use a command different from 'cpp' to compile with CPP.])],
@@ -507,6 +511,10 @@ cabal_base_lib_depends="${ghcLibsRequiredWithVersion} ${ghcLibsRequiredWithoutVe
 if test x$enableClr = "xyes"
 then
   cabal_base_lib_depends="$cabal_base_lib_depends language-cil"
+fi
+if test x$enableConstraint = "xyes"
+then
+  cabal_base_lib_depends="$cabal_base_lib_depends unbound cobalt"
 fi
 cabal_extra_lib_depends=""
 optCabalAllowUndecidableInstances=UndecidableInstances

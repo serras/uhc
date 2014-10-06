@@ -1,0 +1,88 @@
+%%[0
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Pretty printing
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(99 constraint) hs module {%{EH}Constraint.Pretty} import(UHC.Util.Pretty as PP,{%{EH}Base.Common},Control.Monad)
+%%]
+
+%%[(99 constraint) ag import({Constraint/Cobalt})
+%%]
+
+%%[(99 constraint)
+ATTR AllCobalt [ | | ppF    : {FreshM (PP_Doc)}
+                     pp     : PP_Doc ]
+ATTR MonoType  [ | | parens : Bool ]
+
+{
+getPpF :: (a,b) -> b
+getPpF = snd
+
+parenthesize :: (Bool, PP_Doc, FreshM PP_Doc) -> FreshM PP_Doc
+parenthesize (p, _, doc) = if p then fmap ppParens doc
+                                else doc
+}
+
+SEM AllCobalt
+  | * lhs.ppF = @loc.ppF
+      lhs.pp = runFreshM @loc.ppF
+
+SEM PolyType
+  | Bind    loc.ppF    = { do (v,p) <- unbind @bound
+                              let pDotPpF = getPpF $ sem_PolyType p
+                              pDotPp <- pDotPpF
+                              return $ ppCurly (show v) >#< pDotPp }
+  | Mono    loc.ppF    = { do cs <- mapM (getPpF . sem_Constraint) @constraints
+                              mp <- @monotype.ppF
+                              return $ ppCommas' cs >#< text "=>" >-#-< mp }
+  | Bottom  loc.ppF    = return $ text "_|_"
+
+SEM MonoType
+  | Var     lhs.parens = False
+            loc.ppF    = return $ text (show @var)
+  | Fam Con lhs.parens = not (null @args)
+            loc.ppF    = { do tys <- mapM (parenthesize . sem_MonoType) @args
+                              return $ ppSpaces (text @f : tys) }
+  | Arrow   lhs.parens = True
+            loc.ppF    = { do sPpF <- parenthesize (@source.parens,undefined,@source.ppF)
+                              tPpF <- @target.ppF
+                              return $ sPpF >#< text "->" >#< tPpF }
+
+SEM Constraint
+  | Unify   loc.ppF    = { do ppF1 <- @ty1.ppF
+                              ppF2 <- @ty2.ppF
+                              return $ ppF1 >#< text "~" >#< ppF2 }
+  | Inst    loc.ppF    = { do ppF1 <- @ty1.ppF
+                              ppF2 <- @ty2.ppF
+                              return $ ppF1 >#< text ">" >#< ppF2 }
+  | Equal   loc.ppF    = { do ppF1 <- @ty1.ppF
+                              ppF2 <- @ty2.ppF
+                              return $ ppF1 >#< text "=" >#< ppF2 }
+  | Class   loc.ppF    = { do tys <- mapM (parenthesize . sem_MonoType) @args
+                              return $ ppSpaces (text @cls : tys) }
+  | Exists  loc.ppF    = { do (vs,(q,c)) <- unbind @bound
+                              let varsPp = ppCurlysCommas' $ map (text . show) vs
+                              qPp <- mapM (getPpF . sem_Constraint) q
+                              cPp <- mapM (getPpF . sem_Constraint) c
+                              return $ text "∃" >#<
+                                       ppParens (ppCommas' qPp >#< text "=>"
+                                                               >-#-< ppCommas' cPp) }
+
+SEM Axiom
+  | Unify   loc.ppF    = { do (vs,(t1,t2)) <- unbind @bound
+                              let varsPp = ppCurlysCommas' $ map (text . show) vs
+                              ty1Pp <- (\(_,_,z) -> z) $ sem_MonoType t1
+                              ty2Pp <- (\(_,_,z) -> z) $ sem_MonoType t2
+                              return $ varsPp >-#-< ty1Pp >#< text "~" >#< ty2Pp }
+  | Class   loc.ppF    = { do (vs,(q,cls,args)) <- unbind @bound
+                              let varsPp = ppCurlysCommas' $ map (text . show) vs
+                              cs <- mapM (getPpF . sem_Constraint) q
+                              tys <- mapM (parenthesize . sem_MonoType) args
+                              return $ varsPp >-#-< 
+                                       ppCommas' cs >#< text "=>" >-#-<
+                                       ppSpaces (text cls : tys) }
+%%]

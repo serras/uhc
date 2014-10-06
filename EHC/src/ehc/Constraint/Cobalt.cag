@@ -1,0 +1,50 @@
+%%[0
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%[(99 constraint)
+imports
+{
+import Unbound.LocallyNameless
+import Language.Cobalt.Types
+}
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Wrappers for the types in cobalt
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(99 constraint)
+DATA PolyType
+  | Bind   bound       : {Bind TyVar PolyType}
+  | Mono   constraints : {[Constraint]}
+           monotype    : MonoType
+  | Bottom
+
+DATA MonoType
+  | Fam   f      : String
+          args   : {[MonoType]}
+  | Var   var    : {TyVar}
+  | Con   f      : String
+          args   : {[MonoType]}
+  | Arrow source : MonoType
+          target : MonoType
+
+DATA Constraint
+  | Unify  ty1   : MonoType
+           ty2   : MonoType
+  | Inst   ty1   : MonoType
+           ty2   : PolyType
+  | Equal  ty1   : MonoType
+           ty2   : PolyType
+  | Class  cls   : String
+           args  : {[MonoType]}
+  | Exists bound : {Bind [TyVar] ([Constraint],[Constraint])}
+
+DATA Axiom
+  | Unify bound : {Bind [TyVar] (MonoType, MonoType)}
+  | Class bound : {Bind [TyVar] ([Constraint], String, [MonoType])}
+
+SET AllCobalt = PolyType MonoType Constraint Axiom
+%%]
