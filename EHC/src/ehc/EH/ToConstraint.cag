@@ -1,0 +1,43 @@
+%%[0
+%include lhs2TeX.fmt
+%include afp.fmt
+%%]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Conversion to Constraint AST
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%[(99 constraint) hs module {%{EH}EH.ToConstraint} import(Language.Haskell.Constraint.Syntax,{%{EH}EH},qualified {%{EH}Constraint} as C,{%{EH}Base.Common},{%{EH}Ty},{%{EH}Foreign})
+%%]
+
+%%[(99 constraint) ag import({EH/AbsSyn})
+%%]
+
+%%[(99 constraint)
+-- Top level
+SEM AGItf [ | | c : {C.Top} ]
+-- Declarations
+SEM Decl  [ | | c : {C.Decl} topLevel : {Bool} ]
+SEM Decls [ | | c USE {++} {[]} : {C.Decls} topLevel : {Bool} ]
+-- Type variables
+SEM TyVar  [ | | c : {C.WildcardTyVar} ]
+SEM TyVars [ | | c USE {++} {[]} : {[C.WildcardTyVar]} ]
+-- Type and kind expressions
+SEM TyExpr KiExpr [ | | c : {C.TyExpr} ]
+SEM MbTyExpr [ | | c : {C.OptTyExpr} ]
+-- Expressions
+SEM Expr [ | | c : {C.Expr} ]
+SEM PatExpr [ | | c : {C.Pattern} ]
+SEM CaseAlt  [ | | c : {C.CaseAlt} ]
+SEM CaseAlts [ | | c USE {++} {[]} : {C.CaseAlts} ]
+-- Functional dependencies
+SEM FuncDep  [ | | c : {C.FuncDep} ]
+SEM FuncDeps [ | | c USE {++} {[]} : {C.FuncDeps} ]
+-- Data declarations
+SEM DataConstr    [ | | c : {C.DataCon} ]
+SEM DataConstrs   [ | | c USE {++} {[]} : {C.DataCons} ]
+SEM DataField     [ | | c : {C.DataField} ]
+SEM DataFields    [ | | c USE {++} {[]} : {C.DataFields} ]
+SEM DataConstrEq  [ | | c : {C.EqualityConstraint} ]
+SEM DataConstrEqs [ | | c USE {++} {[]} : {C.EqualityConstraints} ]
+%%]
